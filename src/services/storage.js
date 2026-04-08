@@ -83,3 +83,70 @@ export async function getMonthlyTotal(telegramUserId) {
 
   return data.reduce((sum, row) => sum + (row.monto || 0), 0);
 }
+
+/**
+ * Obtiene los últimos gastos de un usuario.
+ * @param {number} telegramUserId
+ * @param {number} [limit=10]
+ * @returns {Promise<Array<{id: number, monto: number, categoria: string, descripcion: string|null, establecimiento: string|null, created_at: string}>>}
+ */
+export async function getRecentExpenses(telegramUserId, limit = 10) {
+  const { data, error } = await supabase
+    .from('gastos')
+    .select('id, monto, categoria, descripcion, establecimiento, created_at')
+    .eq('telegram_user_id', telegramUserId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error('Error obteniendo gastos recientes', { telegramUserId, error: error.message });
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Elimina un gasto por ID (con verificación de propiedad).
+ * @param {number} expenseId
+ * @param {number} telegramUserId
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function deleteExpense(expenseId, telegramUserId) {
+  const { error } = await supabase
+    .from('gastos')
+    .delete()
+    .eq('id', expenseId)
+    .eq('telegram_user_id', telegramUserId);
+
+  if (error) {
+    logger.error('Error eliminando gasto', { expenseId, telegramUserId, error: error.message });
+    return { success: false, error: error.message };
+  }
+
+  logger.info('Gasto eliminado', { expenseId, telegramUserId });
+  return { success: true };
+}
+
+/**
+ * Actualiza campos de un gasto (con verificación de propiedad).
+ * @param {number} expenseId
+ * @param {number} telegramUserId
+ * @param {object} updates - Campos a actualizar (monto, categoria, descripcion, establecimiento)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function updateExpense(expenseId, telegramUserId, updates) {
+  const { error } = await supabase
+    .from('gastos')
+    .update(updates)
+    .eq('id', expenseId)
+    .eq('telegram_user_id', telegramUserId);
+
+  if (error) {
+    logger.error('Error actualizando gasto', { expenseId, telegramUserId, error: error.message });
+    return { success: false, error: error.message };
+  }
+
+  logger.info('Gasto actualizado', { expenseId, telegramUserId, fields: Object.keys(updates) });
+  return { success: true };
+}

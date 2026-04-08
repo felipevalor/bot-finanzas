@@ -31,7 +31,7 @@ const config = Object.freeze({
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY
   },
-  allowedCategories: (process.env.ALLOWED_CATEGORIES || 'Otros').split(',').map((c) => c.trim())
+  allowedCategories: (process.env.ALLOWED_CATEGORIES || 'Alimentos,Transporte,Hogar,Salud,Educación,Ocio,Ropa,Tecnología,Servicios,Facturas,Salidas,Otros').split(',').map((c) => c.trim())
 });
 
 export default config;
