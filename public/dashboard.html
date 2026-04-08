@@ -497,19 +497,25 @@
                 endDate = new Date(now.getFullYear() + 1, 0, 1);
             }
 
-            let query = supabaseQuery('gastos')
-                .select('monto,categoria,created_at')
-                .gte('created_at', startDate.toISOString())
-                .lt('created_at', endDate.toISOString())
-                .order('created_at', { ascending: false });
+            let url = `${SUPABASE_URL}/rest/v1/gastos?select=monto,categoria,created_at&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&order=created_at.desc`;
 
             if (userId) {
-                query = query.eq('telegram_user_id', userId);
+                url = `${SUPABASE_URL}/rest/v1/gastos?select=monto,categoria,created_at&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&telegram_user_id=eq.${userId}&order=created_at.desc`;
             }
 
-            const { data, error } = await query;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                cache: 'no-store'
+            });
 
-            if (error) throw error;
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            const data = await response.json();
 
             if (!data || data.length === 0) {
                 document.getElementById('totalGastado').textContent = '$0';
@@ -569,19 +575,25 @@
                 endDate = new Date(now.getFullYear() + 1, 0, 1);
             }
 
-            let query = supabaseQuery('gastos')
-                .select('*')
-                .gte('created_at', startDate.toISOString())
-                .lt('created_at', endDate.toISOString())
-                .order('created_at', { ascending: false })
-                .limit(20);
+            let url = `${SUPABASE_URL}/rest/v1/gastos?select=*&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&order=created_at.desc&limit=20`;
 
             if (userId) {
-                query = query.eq('telegram_user_id', userId);
+                url = `${SUPABASE_URL}/rest/v1/gastos?select=*&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&telegram_user_id=eq.${userId}&order=created_at.desc&limit=20`;
             }
 
-            const { data, error } = await query;
-            if (error) throw error;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                cache: 'no-store'
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            const data = await response.json();
 
             const tbody = document.getElementById('expensesTableBody');
 
