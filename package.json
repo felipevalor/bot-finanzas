@@ -1,0 +1,23 @@
+{
+  "name": "gastos-bot",
+  "version": "1.0.0",
+  "description": "Bot de Telegram para registro de gastos personales con IA",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@supabase/node-fetch": "^2.6.13",
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "groq-sdk": "^0.7.0",
+    "node-fetch": "^2.7.0",
+    "winston": "^3.14.0"
+  }
+}
