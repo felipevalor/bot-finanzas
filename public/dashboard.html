@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💰 Dashboard de Gastos - Bot Finanzas</title>
+    <title>Valor Finanzas | Dashboard Inteligente de Gastos</title>
+    <link rel="icon" type="image/svg+xml" href="/valor solutions logos/logo-v 1 [Vectorized].svg">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         * {
@@ -13,68 +14,170 @@
         }
 
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
+            --primary: #f45151;
+            --primary-dark: #d94444;
+            --primary-light: #ff6b6b;
+            --primary-glow: rgba(244, 81, 81, 0.3);
             --success: #10b981;
+            --success-light: #34d399;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --bg: #0f172a;
-            --bg-card: #1e293b;
-            --bg-hover: #334155;
-            --text: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border: #334155;
+            --bg-dark: #0a0e1a;
+            --bg: #0f1629;
+            --bg-card: #151c32;
+            --bg-card-hover: #1a2340;
+            --bg-hover: #1e293b;
+            --border: rgba(244, 81, 81, 0.15);
+            --border-light: rgba(255, 255, 255, 0.08);
+            --text: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 30px var(--primary-glow);
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: var(--bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg) 100%);
             color: var(--text);
             line-height: 1.6;
             min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(244, 81, 81, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(244, 81, 81, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
         }
 
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 1.25rem;
         }
 
+        /* Header */
         header {
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+            padding: 1.25rem 1.5rem;
+            background: linear-gradient(135deg, rgba(244, 81, 81, 0.1) 0%, rgba(21, 28, 50, 0.5) 100%);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            flex-shrink: 0;
+        }
+
+        .logo-container svg {
+            width: 44px;
+            height: 44px;
+            filter: drop-shadow(0 0 15px var(--primary-glow));
+        }
+
+        .header-text {
+            flex: 1;
         }
 
         header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--success));
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            letter-spacing: -0.02em;
         }
 
         header p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(244, 81, 81, 0.15);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            color: var(--primary-light);
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .header-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: pulse 2s ease-in-out infinite;
         }
 
         .status-bar {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
         }
 
         .status-item {
             background: var(--bg-card);
-            padding: 0.75rem 1.25rem;
+            padding: 0.75rem 1rem;
             border-radius: 0.5rem;
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-light);
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .status-item:hover {
+            border-color: var(--border);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .status-dot {
@@ -83,62 +186,183 @@
             border-radius: 50%;
             background: var(--success);
             animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 8px var(--success);
         }
 
         .status-dot.error {
             background: var(--danger);
+            box-shadow: 0 0 10px var(--danger);
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.95); }
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            align-items: center;
+            background: var(--bg-card);
+            padding: 0.875rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            background: var(--bg);
+            border: 1px solid var(--border-light);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .filter-bar select:focus,
+        .filter-bar input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .filter-bar label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-left: auto;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .refresh-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .refresh-btn:hover::before {
+            left: 100%;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md), var(--shadow-glow);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         .metric-card {
-            background: var(--bg-card);
-            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
+            padding: 1.25rem;
             border-radius: 0.75rem;
-            border: 1px solid var(--border);
-            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .metric-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border-color: var(--border);
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+        }
+
+        .metric-card:hover::before {
+            opacity: 1;
+        }
+
+        .metric-card .icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: var(--shadow-sm);
         }
 
         .metric-card .label {
-            color: var(--text-muted);
-            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
             margin-bottom: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
+            font-weight: 600;
         }
 
         .metric-card .value {
-            font-size: 2rem;
-            font-weight: 700;
+            font-size: 1.75rem;
+            font-weight: 800;
             color: var(--text);
+            margin-bottom: 0.35rem;
+            background: linear-gradient(135deg, var(--text) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .metric-card .subtext {
             color: var(--text-muted);
-            font-size: 0.85rem;
-            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
         }
 
         .charts-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         @media (max-width: 1024px) {
@@ -148,36 +372,68 @@
         }
 
         .chart-card {
-            background: var(--bg-card);
-            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(21, 28, 50, 0.8) 100%);
+            padding: 1.25rem;
             border-radius: 0.75rem;
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chart-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-md);
         }
 
         .chart-card h3 {
             margin-bottom: 1rem;
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-card h3::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 2px;
         }
 
         .chart-container {
             position: relative;
-            height: 300px;
+            height: 280px;
         }
 
+        /* Expenses Table */
         .expenses-table {
-            background: var(--bg-card);
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(21, 28, 50, 0.8) 100%);
             border-radius: 0.75rem;
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-light);
             overflow: hidden;
+            box-shadow: var(--shadow-sm);
         }
 
         .expenses-table h3 {
-            padding: 1.5rem;
+            padding: 1rem 1.25rem;
             margin: 0;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .expenses-table h3::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 2px;
         }
 
         table {
@@ -186,57 +442,67 @@
         }
 
         thead th {
-            background: var(--bg-hover);
-            padding: 0.75rem 1.5rem;
+            background: rgba(244, 81, 81, 0.05);
+            padding: 0.75rem 1rem;
             text-align: left;
-            font-size: 0.85rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-light);
         }
 
         tbody td {
-            padding: 1rem 1.5rem;
-            border-top: 1px solid var(--border);
-            font-size: 0.95rem;
+            padding: 0.875rem 1rem;
+            border-top: 1px solid var(--border-light);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
         }
 
         tbody tr {
-            transition: background 0.15s;
+            transition: all 0.2s ease;
         }
 
         tbody tr:hover {
-            background: var(--bg-hover);
+            background: rgba(244, 81, 81, 0.05);
+        }
+
+        tbody tr:hover td {
+            color: var(--text);
         }
 
         .categoria-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.65rem;
             border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            background: var(--primary);
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
+            box-shadow: 0 2px 6px var(--primary-glow);
         }
 
         .monto {
-            font-weight: 600;
+            font-weight: 700;
             color: var(--success);
+            font-size: 0.9rem;
         }
 
         .loading {
             text-align: center;
-            padding: 3rem;
+            padding: 2rem;
             color: var(--text-muted);
         }
 
         .loading .spinner {
-            border: 3px solid var(--border);
-            border-top: 3px solid var(--primary);
+            border: 2px solid var(--border-light);
+            border-top: 2px solid var(--primary);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
         }
@@ -250,71 +516,150 @@
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid var(--danger);
             color: var(--danger);
-            padding: 1rem;
+            padding: 0.875rem;
             border-radius: 0.5rem;
             margin-bottom: 1rem;
-        }
-
-        .filter-bar {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .filter-bar select,
-        .filter-bar input {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .filter-bar label {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        .refresh-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.5rem 1.25rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.9rem;
             font-weight: 500;
-            transition: background 0.2s;
-            margin-left: auto;
+            font-size: 0.85rem;
+            box-shadow: var(--shadow-sm);
         }
 
-        .refresh-btn:hover {
-            background: var(--primary-dark);
-        }
-
-        .refresh-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
+        /* Footer */
         footer {
             text-align: center;
-            padding: 2rem 0;
-            color: var(--text-muted);
+            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(21, 28, 50, 0.5) 100%);
+            border: 1px solid var(--border-light);
+            border-radius: 0.75rem;
+            margin-top: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
+        }
+
+        .footer-logo {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-logo svg {
+            width: 32px;
+            height: 32px;
+            opacity: 0.8;
+        }
+
+        footer p {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 0.35rem;
+        }
+
+        footer .brand {
+            color: var(--primary);
+            font-weight: 700;
             font-size: 0.85rem;
-            border-top: 1px solid var(--border);
-            margin-top: 2rem;
+            margin-top: 0.35rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.75rem;
+            }
+
+            header {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .logo-container svg {
+                width: 40px;
+                height: 40px;
+            }
+
+            header h1 {
+                font-size: 1.25rem;
+            }
+
+            .status-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .refresh-btn {
+                margin-left: 0;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-card {
+                padding: 1rem;
+            }
+
+            .chart-container {
+                height: 240px;
+            }
+
+            table {
+                font-size: 0.75rem;
+            }
+
+            thead th,
+            tbody td {
+                padding: 0.6rem 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.1rem;
+            }
+
+            .metric-card {
+                padding: 1rem;
+            }
+
+            .metric-card .value {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>💰 Dashboard de Gastos</h1>
-            <p>Bot de Finanzas Personales — Métricas en tiempo real desde Supabase</p>
+            <div class="header-content">
+                <div class="logo-container">
+                    <svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M306.465 170.985C312.393 170.355 319.67 172.994 324.307 176.705C329.758 181.063 333.23 187.429 333.943 194.372C334.727 201.633 332.847 206.455 329.207 212.607C326.377 217.392 323.555 222.234 320.73 227.027L299.114 263.738L277.234 300.884C269.158 314.551 265.146 327.031 247.373 328.777C241.212 329.175 235.104 327.407 230.108 323.782C224.644 319.763 220.977 313.762 219.896 307.068C219.244 302.876 219.566 296.982 221.414 293.162C224.282 287.231 228.346 280.84 231.731 275.112L251.262 241.889L275.051 201.479L282.253 189.245C288.979 177.83 292.534 172.966 306.465 170.985Z" fill="#F45151"/>
+                        <path d="M182.452 168.63C197.294 168.213 209.681 179.871 210.165 194.711C210.648 209.551 199.045 221.991 184.208 222.54C169.276 223.094 156.74 211.401 156.253 196.467C155.767 181.533 167.516 169.049 182.452 168.63Z" fill="#F45151"/>
+                        <path d="M207.797 222.469C222.595 221.214 235.62 232.166 236.924 246.96C238.228 261.753 227.32 274.814 212.531 276.167C197.671 277.527 184.535 266.558 183.225 251.692C181.915 236.83 192.929 223.73 207.797 222.469Z" fill="#F45151"/>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>Valor Finanzas</h1>
+                    <p>Dashboard Inteligente de Control de Gastos</p>
+                    <div class="header-badge">Monitoreo en Tiempo Real</div>
+                </div>
+            </div>
         </header>
 
         <div class="status-bar">
@@ -348,21 +693,25 @@
 
         <div class="metrics-grid" id="metricsGrid">
             <div class="metric-card">
+                <div class="icon">💵</div>
                 <div class="label">Total Gastado</div>
                 <div class="value" id="totalGastado">$0</div>
                 <div class="subtext" id="totalSubtext">Este período</div>
             </div>
             <div class="metric-card">
+                <div class="icon">📊</div>
                 <div class="label">Cantidad de Gastos</div>
                 <div class="value" id="cantidadGastos">0</div>
                 <div class="subtext">Registros</div>
             </div>
             <div class="metric-card">
+                <div class="icon">📈</div>
                 <div class="label">Promedio por Gasto</div>
                 <div class="value" id="promedioGasto">$0</div>
                 <div class="subtext">Por transacción</div>
             </div>
             <div class="metric-card">
+                <div class="icon">🏆</div>
                 <div class="label">Categoría Principal</div>
                 <div class="value" id="categoriaPrincipal">-</div>
                 <div class="subtext" id="categoriaSubtext">Mayor gasto</div>
@@ -384,7 +733,7 @@
             </div>
         </div>
 
-        <div class="chart-card" style="margin-bottom: 2rem;">
+        <div class="chart-card" style="margin-bottom: 1.5rem;">
             <h3>📉 Evolución Diaria de Gastos</h3>
             <div class="chart-container">
                 <canvas id="evolucionChart"></canvas>
@@ -415,7 +764,15 @@
         </div>
 
         <footer>
-            <p>Bot Finanzas Personales — Dashboard v1.0 | Datos obtenidos de Supabase en tiempo real</p>
+            <div class="footer-logo">
+                <svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M306.465 170.985C312.393 170.355 319.67 172.994 324.307 176.705C329.758 181.063 333.23 187.429 333.943 194.372C334.727 201.633 332.847 206.455 329.207 212.607C326.377 217.392 323.555 222.234 320.73 227.027L299.114 263.738L277.234 300.884C269.158 314.551 265.146 327.031 247.373 328.777C241.212 329.175 235.104 327.407 230.108 323.782C224.644 319.763 220.977 313.762 219.896 307.068C219.244 302.876 219.566 296.982 221.414 293.162C224.282 287.231 228.346 280.84 231.731 275.112L251.262 241.889L275.051 201.479L282.253 189.245C288.979 177.83 292.534 172.966 306.465 170.985Z" fill="#F45151"/>
+                    <path d="M182.452 168.63C197.294 168.213 209.681 179.871 210.165 194.711C210.648 209.551 199.045 221.991 184.208 222.54C169.276 223.094 156.74 211.401 156.253 196.467C155.767 181.533 167.516 169.049 182.452 168.63Z" fill="#F45151"/>
+                    <path d="M207.797 222.469C222.595 221.214 235.62 232.166 236.924 246.96C238.228 261.753 227.32 274.814 212.531 276.167C197.671 277.527 184.535 266.558 183.225 251.692C181.915 236.83 192.929 223.73 207.797 222.469Z" fill="#F45151"/>
+                </svg>
+            </div>
+            <p>Dashboard v2.0 | Datos obtenidos de Supabase en tiempo real</p>
+            <p class="brand">© 2026 Valor Finanzas — Todos los derechos reservados</p>
         </footer>
     </div>
 
@@ -437,7 +794,7 @@
         let evolucionChartInstance = null;
 
         const CATEGORIA_COLORS = [
-            '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+            '#f45151', '#ff6b6b', '#10b981', '#f59e0b', '#8b5cf6',
             '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#84cc16',
             '#a855f7', '#0ea5e9'
         ];
@@ -634,21 +991,30 @@
                         label: 'Total gastado ($)',
                         data: sortedCategorias.map(([, total]) => total),
                         backgroundColor: CATEGORIA_COLORS.slice(0, sortedCategorias.length),
-                        borderRadius: 6,
-                        borderSkipped: false
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        barThickness: 'flex',
+                        maxBarThickness: 50
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 800,
+                        easing: 'easeOutQuart'
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleColor: '#f1f5f9',
-                            bodyColor: '#f1f5f9',
-                            borderColor: '#334155',
+                            backgroundColor: '#151c32',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#f8fafc',
+                            borderColor: 'rgba(244, 81, 81, 0.3)',
                             borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12,
+                            displayColors: false,
                             callbacks: {
                                 label: (context) => `Total: ${formatMoney(context.parsed.y)}`
                             }
@@ -657,15 +1023,29 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            grid: { color: '#334155' },
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
                             ticks: {
-                                color: '#94a3b8',
+                                color: '#64748b',
+                                padding: 8,
                                 callback: (value) => formatMoney(value)
+                            },
+                            border: {
+                                display: false
                             }
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#94a3b8' }
+                            ticks: { 
+                                color: '#64748b',
+                                padding: 8,
+                                maxRotation: 45
+                            },
+                            border: {
+                                display: false
+                            }
                         }
                     }
                 }
@@ -686,27 +1066,40 @@
                     datasets: [{
                         data: sortedCategorias.map(([, total]) => total),
                         backgroundColor: CATEGORIA_COLORS.slice(0, sortedCategorias.length),
-                        borderWidth: 0
+                        borderWidth: 2,
+                        borderColor: '#151c32',
+                        hoverOffset: 8
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 800,
+                        easing: 'easeOutQuart'
+                    },
+                    cutout: '65%',
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: {
-                                color: '#94a3b8',
-                                padding: 10,
-                                usePointStyle: true
+                                color: '#64748b',
+                                padding: 12,
+                                usePointStyle: true,
+                                pointStyleWidth: 10,
+                                font: {
+                                    size: 11
+                                }
                             }
                         },
                         tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleColor: '#f1f5f9',
-                            bodyColor: '#f1f5f9',
-                            borderColor: '#334155',
+                            backgroundColor: '#151c32',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#f8fafc',
+                            borderColor: 'rgba(244, 81, 81, 0.3)',
                             borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12,
                             callbacks: {
                                 label: (context) => {
                                     const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -753,52 +1146,96 @@
                         {
                             label: 'Gasto diario ($)',
                             data: sortedDates.map(date => dailyTotals[date]),
-                            borderColor: '#6366f1',
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderColor: '#f45151',
+                            backgroundColor: 'rgba(244, 81, 81, 0.1)',
                             fill: true,
                             tension: 0.4,
                             pointRadius: 4,
-                            pointHoverRadius: 6
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#f45151',
+                            pointBorderColor: '#151c32',
+                            pointBorderWidth: 2,
+                            pointHoverBackgroundColor: '#ff6b6b',
+                            pointHoverBorderColor: '#151c32',
+                            pointHoverBorderWidth: 2,
+                            borderWidth: 3
                         },
                         {
                             label: 'Acumulado ($)',
                             data: acumuladoData,
                             borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
                             fill: true,
                             tension: 0.4,
                             pointRadius: 3,
-                            pointHoverRadius: 5
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#10b981',
+                            pointBorderColor: '#151c32',
+                            pointBorderWidth: 2,
+                            pointHoverBackgroundColor: '#34d399',
+                            pointHoverBorderColor: '#151c32',
+                            pointHoverBorderWidth: 2,
+                            borderWidth: 2,
+                            borderDash: [5, 5]
                         }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
                     plugins: {
                         legend: {
-                            labels: { color: '#94a3b8' }
+                            labels: { 
+                                color: '#64748b',
+                                usePointStyle: true,
+                                padding: 15
+                            }
                         },
                         tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleColor: '#f1f5f9',
-                            bodyColor: '#f1f5f9',
-                            borderColor: '#334155',
-                            borderWidth: 1
+                            backgroundColor: '#151c32',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#f8fafc',
+                            borderColor: 'rgba(244, 81, 81, 0.3)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12,
+                            mode: 'index'
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            grid: { color: '#334155' },
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
                             ticks: {
-                                color: '#94a3b8',
+                                color: '#64748b',
+                                padding: 8,
                                 callback: (value) => formatMoney(value)
+                            },
+                            border: {
+                                display: false
                             }
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#94a3b8' }
+                            ticks: { 
+                                color: '#64748b',
+                                padding: 8,
+                                maxRotation: 45
+                            },
+                            border: {
+                                display: false
+                            }
                         }
                     }
                 }
