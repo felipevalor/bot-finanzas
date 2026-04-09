@@ -177,6 +177,69 @@ export async function handleEditarCommand(chatId, userId) {
   await sendInlineMessage(chatId, text, keyboard);
 }
 
+/**
+ * Handles "eliminar X" text command (direct delete by ID, no confirmation).
+ */
+export async function handleDeleteById(chatId, userId, expenseId) {
+  const expenses = await getRecentExpenses(userId, 50);
+  const expense = expenses.find((e) => e.id === expenseId);
+
+  if (!expense) {
+    await sendMessage(chatId, `❌ No encontré el gasto #${expenseId}. Usá /eliminar para ver tus gastos recientes.`);
+    return;
+  }
+
+  const result = await deleteExpense(expenseId, userId);
+
+  if (result.success) {
+    let response = `✅ Gasto #${expenseId} eliminado\n\n`;
+    response += `💰 Monto: $${formatNumber(expense.monto)}\n`;
+    response += `🏷️ Categoría: ${expense.categoria}\n`;
+    if (expense.descripcion) {
+      response += `📝 Descripción: ${expense.descripcion}\n`;
+    }
+    await sendMessage(chatId, response);
+    logger.info('Gasto eliminado por ID', { userId, expenseId });
+  } else {
+    await sendMessage(chatId, '❌ No pude eliminar el gasto. Reintentá.');
+    logger.error('Error eliminando gasto por ID', { userId, expenseId, error: result.error });
+  }
+}
+
+/**
+ * Handles "editar X" text command (starts edit session for the expense).
+ */
+export async function handleEditById(chatId, userId, expenseId) {
+  const expenses = await getRecentExpenses(userId, 50);
+  const expense = expenses.find((e) => e.id === expenseId);
+
+  if (!expense) {
+    await sendMessage(chatId, `❌ No encontré el gasto #${expenseId}. Usá /editar para ver tus gastos recientes.`);
+    return;
+  }
+
+  // Create edit session
+  createSession(userId, 'edit', expenseId, chatId, null);
+
+  let text = `✏️ Editando gasto #${expenseId}:\n\n`;
+  text += `💰 *Monto*: $${formatNumber(expense.monto)}\n`;
+  text += `🏷️ *Categoría*: ${expense.categoria}\n`;
+  if (expense.descripcion) {
+    text += `📝 *Descripción*: ${expense.descripcion}\n`;
+  }
+  if (expense.establecimiento) {
+    text += `🏪 *Establecimiento*: ${expense.establecimiento}\n`;
+  }
+  text += `📅 *Fecha*: ${formatDate(expense.created_at)}\n\n`;
+  text += `¿Qué campo querés modificar?\n`;
+  text += `• _"monto 2500"_ — nuevo monto\n`;
+  text += `• _"categoría Alimentos"_ — nueva categoría\n`;
+  text += `• _"desc compra semanal"_ — nueva descripción\n`;
+  text += `• _"establecimiento Día"_ — nuevo establecimiento`;
+
+  await sendMessage(chatId, text);
+}
+
 // ─── Callback Handlers ───────────────────────────────────────────
 
 /**
@@ -361,12 +424,12 @@ export async function handleCategorySelection(query, userId, category) {
 }
 
 /**
- * Handles text input during edit session (monto, descripcion, establecimiento).
+ * Handles text input during edit session (monto, descripcion, establecimiento, categoria).
  */
 export async function handleEditInput(chatId, userId, text) {
   const session = getSession(userId);
 
-  if (!session || session.action !== 'edit' || !session.field) {
+  if (!session || session.action !== 'edit') {
     return false; // Not in edit mode
   }
 
@@ -378,7 +441,12 @@ export async function handleEditInput(chatId, userId, text) {
 
   const { expenseId, field } = session;
 
-  // Validate and process based on field type
+  // If no field is set yet, try to parse the command (text-based edit flow)
+  if (!field) {
+    return await handleEditFieldCommand(chatId, userId, text, expenseId);
+  }
+
+  // Field is already set via inline keyboard — process the value
   if (field === 'monto') {
     const monto = parseFloat(text.replace(/[^0-9.,]/g, '').replace(',', '.'));
 
@@ -417,6 +485,98 @@ export async function handleEditInput(chatId, userId, text) {
 
   // Clear session
   clearSession(userId);
+  return true;
+}
+
+/**
+ * Handles field command during edit session (e.g. "monto 2500", "categoría Alimentos").
+ */
+async function handleEditFieldCommand(chatId, userId, text, expenseId) {
+  const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // "monto 2500"
+  const montoMatch = text.match(/^(?:monto|monto\s+)?\$?\s*([\d.,]+)$/i);
+  if (montoMatch || lower.startsWith('monto')) {
+    let value;
+    if (montoMatch) {
+      value = montoMatch[1];
+    } else {
+      value = text.replace(/^monto\s+/i, '').trim();
+    }
+    const monto = parseFloat(value.replace(/[^0-9.,]/g, '').replace(',', '.'));
+
+    if (isNaN(monto) || monto <= 0) {
+      await sendMessage(chatId, '⚠️ El monto debe ser un número mayor a 0. Ej: "monto 2500"');
+      return true;
+    }
+
+    const result = await updateExpense(expenseId, userId, { monto });
+    if (result.success) {
+      await sendMessage(chatId, `✅ Monto actualizado: $${formatNumber(monto)}`);
+      logger.info('Monto editado', { userId, expenseId, newMonto: monto });
+    } else {
+      await sendMessage(chatId, '❌ No pude actualizar el monto. Reintentá.');
+    }
+    clearSession(userId);
+    return true;
+  }
+
+  // "categoría Alimentos"
+  const catMatch = lower.match(/^(?:categoria)\s+(.+)$/);
+  if (catMatch) {
+    const categoryInput = catMatch[1].trim();
+    // Find matching category (case/diacritic insensitive)
+    const categories = ['Alimentos', 'Transporte', 'Hogar', 'Salud', 'Educación', 'Ocio', 'Ropa', 'Tecnología', 'Servicios', 'Facturas', 'Salidas', 'Otros'];
+    const normalizedInput = categoryInput.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const match = categories.find((cat) =>
+      cat.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === normalizedInput
+    );
+
+    if (!match) {
+      await sendMessage(chatId, `⚠️ Categoría no reconocida: "${categoryInput}".\nCategorías válidas: ${categories.join(', ')}`);
+      return true;
+    }
+
+    const result = await updateExpense(expenseId, userId, { categoria: match });
+    if (result.success) {
+      await sendMessage(chatId, `✅ Categoría actualizada: ${match}`);
+      logger.info('Categoría editada', { userId, expenseId, newCategory: match });
+    } else {
+      await sendMessage(chatId, '❌ No pude actualizar la categoría. Reintentá.');
+    }
+    clearSession(userId);
+    return true;
+  }
+
+  // "desc ..." or "descripción ..."
+  const descMatch = text.match(/^(?:desc(?:ripcion)?)\s+(.+)$/i);
+  if (descMatch) {
+    const result = await updateExpense(expenseId, userId, { descripcion: descMatch[1] });
+    if (result.success) {
+      await sendMessage(chatId, `✅ Descripción actualizada: ${descMatch[1]}`);
+      logger.info('Descripción editada', { userId, expenseId });
+    } else {
+      await sendMessage(chatId, '❌ No pude actualizar la descripción. Reintentá.');
+    }
+    clearSession(userId);
+    return true;
+  }
+
+  // "establecimiento ..."
+  const estMatch = text.match(/^(?:establecimiento|estab(?:lecimiento)?)\s+(.+)$/i);
+  if (estMatch) {
+    const result = await updateExpense(expenseId, userId, { establecimiento: estMatch[1] });
+    if (result.success) {
+      await sendMessage(chatId, `✅ Establecimiento actualizado: ${estMatch[1]}`);
+      logger.info('Establecimiento editado', { userId, expenseId });
+    } else {
+      await sendMessage(chatId, '❌ No pude actualizar el establecimiento. Reintentá.');
+    }
+    clearSession(userId);
+    return true;
+  }
+
+  await sendMessage(chatId, '⚠️ No entendí qué campo querés editar. Usá:\n• _"monto 2500"_\n• _"categoría Alimentos"_\n• _"desc compra semanal"_\n• _"establecimiento Día"_');
   return true;
 }
 

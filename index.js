@@ -16,7 +16,9 @@ import {
   handleFieldSelection,
   handleCategorySelection,
   handleEditInput,
-  cleanupExpiredSessions
+  cleanupExpiredSessions,
+  handleDeleteById,
+  handleEditById
 } from './src/services/expenseManager.js';
 import { startKeepAlive } from './src/services/keepAlive.js';
 
@@ -126,14 +128,15 @@ async function handleMessage({ chatId, userId, messageId, text }) {
     if (text === '/start') {
       await sendMessage(chatId,
         '👋 *¡Hola! Soy tu bot de gastos.*\n\n' +
-        'Enviame un mensaje como:\n' +
+        '📝 *Registrar gasto* (enviá un mensaje):\n' +
         '• _"Gasté 5000 en el super"_\n' +
         '• _"450 café starbucks"_\n' +
-        '• _"Uber 2300"_\n\n' +
-        'Yo extraigo el monto y la categoría automáticamente.\n\n' +
-        '📊 Usá /resumen para ver tu reporte del mes.\n' +
-        '✏️ Usá /editar para modificar un gasto.\n' +
-        '🗑️ Usá /eliminar para borrar un gasto.'
+        '• _"1700 colectivo"_ — ¡sin "gasté"!\n\n' +
+        '📊 _/resumen_ — Reporte del mes\n' +
+        '🗑️ _/eliminar_ — Ver lista y elegir\n' +
+        '   _"eliminar 5"_ — Eliminar el gasto #5\n' +
+        '✏️ _/editar_ — Ver lista y elegir\n' +
+        '   _"editar 5"_ — Editar el gasto #5'
       );
       return;
     }
@@ -161,9 +164,27 @@ async function handleMessage({ chatId, userId, messageId, text }) {
       return;
     }
 
+    // Texto: "eliminar gasto X" o "eliminar X"
+    const deleteMatch = text.match(/^elimina?r?\s+(?:gasto\s+)?(\d+)$/i);
+    if (deleteMatch) {
+      const expenseId = parseInt(deleteMatch[1], 10);
+      await handleDeleteById(chatId, userId, expenseId);
+      logger.info('Eliminación por ID', { chatId, userId, expenseId, latencyMs: Date.now() - startTime });
+      return;
+    }
+
+    // Texto: "editar gasto X" o "editar X"
+    const editMatch = text.match(/^edita?r?\s+(?:gasto\s+)?(\d+)$/i);
+    if (editMatch) {
+      const expenseId = parseInt(editMatch[1], 10);
+      await handleEditById(chatId, userId, expenseId);
+      logger.info('Edición por ID', { chatId, userId, expenseId, latencyMs: Date.now() - startTime });
+      return;
+    }
+
     // Ignorar otros comandos
     if (text.startsWith('/')) {
-      await sendMessage(chatId, '🤔 Comando no reconocido. Enviame un gasto o usá /resumen.');
+      await sendMessage(chatId, '🤔 Comando no reconocido. Enviame un gasto (ej: "1700 colectivo") o usá /resumen.');
       return;
     }
 

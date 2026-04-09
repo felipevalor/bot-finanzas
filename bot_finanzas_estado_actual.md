@@ -43,15 +43,22 @@ flowchart LR
 
 | Aspecto | Detalle |
 |---|---|
-| **Entrada** | Texto libre en español (ej: "gasté 5500 en verdulería") |
+| **Entrada** | Texto libre en español, con o sin verbo (ej: "gasté 5500 en verdulería" o "5500 verdulería" o "1700 colectivo") |
 | **Procesamiento** | Groq AI en modo JSON estricto extrae monto, categoría, descripción, establecimiento |
 | **Categorías** | Alimentos, Transporte, Hogar, Salud, Educación, Ocio, Ropa, Tecnología, Servicios, Facturas, Salidas, Otros |
 | **Respuesta** | Confirmación con emojis + monto + categoría + total acumulado del mes |
 | **Latencia típica** | ~3-4 segundos (incluye Groq + Supabase + Telegram) |
 
-**Ejemplo de interacción:**
+**Ejemplos de interacción:**
 ```
-Usuario: gaste 5500 en verduleria
+Usuario: 1700 colectivo
+Bot:     ✅ Gasto registrado
+         💸 Monto: $1.700
+         🏷️ Categoría: Transporte
+         📝 Descripción: colectivo
+         📅 Total del mes: $1.700
+
+Usuario: gasté 5500 en verduleria
 Bot:     ✅ Gasto registrado
          💸 Monto: $5.500
          🏷️ Categoría: Alimentos
@@ -81,6 +88,21 @@ Bot:     ✅ Gasto registrado
 ### 3. Comando `/start`
 
 Mensaje de bienvenida con instrucciones de uso y ejemplos.
+
+### 4. Eliminar gastos
+
+| Forma | Ejemplo |
+|---|---|
+| Interactiva (`/eliminar`) | Muestra lista con botones inline |
+| Por ID (`eliminar X`) | `eliminar 5` → elimina el gasto #5 directamente |
+
+### 5. Editar gastos
+
+| Forma | Ejemplo |
+|---|---|
+| Interactiva (`/editar`) | Muestra lista con botones inline |
+| Por ID (`editar X`) | `editar 5` → abre sesión de edición |
+| Campos en sesión | `monto 2500`, `categoría Alimentos`, `desc compra semanal`, `establecimiento Día` |
 
 ---
 
@@ -224,7 +246,8 @@ bot-finanzas/
 - [ ] Rotar API keys comprometidas en git history
 
 ### 🟡 Mejoras de Producto
-- [ ] Comando `/eliminar` — borrar último gasto registrado
+- [x] Comando `/eliminar` con soporte de texto "eliminar X"
+- [x] Comando `/editar` con soporte de texto "editar X" + campos por texto
 - [ ] Comando `/export` — generar CSV/Excel del mes
 - [ ] Soporte multi-moneda (USD/ARS con tipo de cambio)
 - [ ] Gastos recurrentes programados (alquiler, servicios)

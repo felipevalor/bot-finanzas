@@ -11,7 +11,9 @@ const SYSTEM_PROMPT = `Eres un extractor de datos financieros. Analiza el mensaj
   "establecimiento": "string o null"
 }
 REGLAS:
-- Si no hay monto numérico claro, devuelve {"error": "No detecté un monto. Ej: 'Gasté 5000 en café'"}
+- El usuario puede escribir de CUALQUIER forma: "gasté 5000 en café", "5000 café", "5000 starbucks", "1700 colectivo", "$3200 uber", etc.
+- El primer número que encuentres es el monto. Inferí la categoría del contexto (ej: "colectivo" → Transporte, "café" → Alimentos, "uber" → Transporte).
+- Si no hay monto numérico claro, devuelve {"error": "No detecté un monto. Ej: '1700 colectivo' o 'Gasté 5000 en café'"}
 - Usa la fecha de hoy si no se menciona otra
 - Nunca inventes datos. Si falta info, pon null
 - NO agregues texto fuera del JSON`;
