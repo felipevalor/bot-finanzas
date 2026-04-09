@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill *)",
+      "Bash(git commit *)",
+      "Bash(timeout *)",
+      "Bash(true)",
+      "Bash(git reset *)"
+    ]
+  },
+  "$version": 3
+}
