@@ -53,7 +53,14 @@ export async function saveExpense({ telegramUserId, chatId, messageId, monto, ca
     });
 
   if (error) {
-    logger.error('Error guardando gasto', { telegramUserId, messageId, error: error.message });
+    logger.error('Error guardando gasto', {
+      telegramUserId, messageId,
+      error: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      fullError: JSON.stringify(error)
+    });
     return { success: false, error: error.message };
   }
 

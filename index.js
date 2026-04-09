@@ -6,6 +6,8 @@ import { sendTyping, sendMessage, setWebhook, answerCallbackQuery } from './src/
 import { parseExpense } from './src/services/parser.js';
 import { isDuplicate, saveExpense, getMonthlyTotal } from './src/services/storage.js';
 import { getResumen } from './src/services/resumen.js';
+import supabase from './src/config/supabase.js';
+import groq from './src/config/groq.js';
 import {
   handleEliminarCommand,
   handleEditarCommand,
@@ -61,6 +63,41 @@ app.get('/', (_req, res) => {
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Diagnostic endpoint (only in production)
+app.get('/diag', async (_req, res) => {
+  const results = { env: {}, supabase: {}, groq: {} };
+
+  // Check env vars (mask sensitive parts)
+  results.env.SUPABASE_URL = process.env.SUPABASE_URL;
+  results.env.SUPABASE_KEY = process.env.SUPABASE_KEY ? `${process.env.SUPABASE_KEY.substring(0, 20)}...` : 'MISSING';
+  results.env.GROQ_API_KEY = process.env.GROQ_API_KEY ? `${process.env.GROQ_API_KEY.substring(0, 10)}...` : 'MISSING';
+  results.env.TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ? 'SET' : 'MISSING';
+  results.env.WEBHOOK_BASE_URL = process.env.WEBHOOK_BASE_URL;
+  results.env.NODE_ENV = process.env.NODE_ENV;
+
+  // Test Supabase
+  try {
+    const { data, error } = await supabase.from('gastos').select('id').limit(1);
+    results.supabase = data ? { ok: true, rows: data.length } : { error: error?.message || 'unknown', code: error?.code, details: JSON.stringify(error) };
+  } catch (e) {
+    results.supabase = { error: e.message };
+  }
+
+  // Test Groq
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: 'say pong' }],
+      max_tokens: 10
+    });
+    results.groq = { ok: true, response: completion.choices[0]?.message?.content };
+  } catch (e) {
+    results.groq = { error: e.message, status: e.status, statusCode: e.statusCode };
+  }
+
+  res.json(results);
 });
 
 // ─── Webhook endpoint ────────────────────────────────────────────
