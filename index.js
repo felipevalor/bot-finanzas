@@ -18,6 +18,7 @@ import {
   handleEditInput,
   cleanupExpiredSessions
 } from './src/services/expenseManager.js';
+import { startKeepAlive } from './src/services/keepAlive.js';
 
 // ─── Cola en memoria ─────────────────────────────────────────────
 const messageQueue = [];
@@ -260,6 +261,7 @@ function formatNumber(num) {
 app.listen(config.port, async () => {
   logger.info(`Servidor iniciado en puerto ${config.port} (${config.nodeEnv})`);
   await setWebhook();
+  startKeepAlive(app);
 });
 
 // ─── Session cleanup ──────────────────────────────────────────────

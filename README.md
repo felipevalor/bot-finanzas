@@ -108,8 +108,8 @@ ngrok http 3000
 ### Notas importantes sobre Render Free Tier
 
 - El servicio se duerme después de 15 minutos de inactividad.
-- El primer mensaje tras dormir tarda ~30-60s (cold start).
-- Para mantenerlo activo, configurar un cron externo (ej: [cron-job.org](https://cron-job.org)) que haga GET a `/health` cada 14 minutos.
+- **Keep-alive automático**: El bot incluye un self-ping que golpea su propio endpoint `/health` cada 13 minutos para evitar cold starts. No se necesita configurar ningún cron externo.
+- El mecanismo se activa automáticamente cuando `NODE_ENV=production`.
 
 ## Uso del bot
 
@@ -137,8 +137,8 @@ ngrok http 3000
 ## Roadmap — Deuda técnica y escalabilidad
 
 ### Fase 1 — Optimización inmediata
-- [ ] Usar función RPC `resumen_mensual` en vez de fallback JS (ya creada en `init-db.sql`)
-- [ ] Agregar keep-alive cron para evitar cold starts de Render
+- [x] Usar función RPC `resumen_mensual` en vez de fallback JS (ya creada en `init-db.sql`)
+- [x] Agregar keep-alive cron integrado (self-ping cada 13 min en producción)
 - [ ] Rate limiting por usuario (prevenir abuso)
 
 ### Fase 2 — Features
