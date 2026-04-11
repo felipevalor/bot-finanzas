@@ -394,7 +394,9 @@ async function handleMessage({ chatId, userId, messageId, text }) {
     }
 
     // ─── Intent Detection para lenguaje natural ─────────────────────
-    const intent = await detectIntent(text);
+    // Si empieza con número es casi seguro un gasto nuevo → saltear detectIntent
+    const looksLikeExpense = /^\$?\d/.test(text.trimStart());
+    const intent = looksLikeExpense ? { intention: 'create' } : await detectIntent(text);
 
     if (intent.intention === 'summary') {
       await sendTyping(chatId);
