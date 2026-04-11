@@ -1,1376 +1,957 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Valor Finanzas | Dashboard Inteligente de Gastos</title>
-    <link rel="icon" type="image/svg+xml" href="/valor solutions logos/logo-v 1 [Vectorized].svg">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #f45151;
-            --primary-dark: #d94444;
-            --primary-light: #ff6b6b;
-            --primary-glow: rgba(244, 81, 81, 0.3);
-            --success: #10b981;
-            --success-light: #34d399;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg-dark: #0a0e1a;
-            --bg: #0f1629;
-            --bg-card: #151c32;
-            --bg-card-hover: #1a2340;
-            --bg-hover: #1e293b;
-            --border: rgba(244, 81, 81, 0.15);
-            --border-light: rgba(255, 255, 255, 0.08);
-            --text: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #64748b;
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-            --shadow-glow: 0 0 30px var(--primary-glow);
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg) 100%);
-            color: var(--text);
-            line-height: 1.6;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Background pattern */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(244, 81, 81, 0.05) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(244, 81, 81, 0.03) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 1.25rem;
-        }
-
-        /* Header */
-        header {
-            margin-bottom: 1.5rem;
-            padding: 1.25rem 1.5rem;
-            background: linear-gradient(135deg, rgba(244, 81, 81, 0.1) 0%, rgba(21, 28, 50, 0.5) 100%);
-            border: 1px solid var(--border);
-            border-radius: 0.75rem;
-            backdrop-filter: blur(10px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -10%;
-            width: 200px;
-            height: 200px;
-            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
-            opacity: 0.3;
-            pointer-events: none;
-        }
-
-        .header-content {
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .logo-container {
-            flex-shrink: 0;
-        }
-
-        .logo-container svg {
-            width: 44px;
-            height: 44px;
-            filter: drop-shadow(0 0 15px var(--primary-glow));
-        }
-
-        .header-text {
-            flex: 1;
-        }
-
-        header h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            margin-bottom: 0.25rem;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.02em;
-        }
-
-        header p {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .header-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            background: rgba(244, 81, 81, 0.15);
-            border: 1px solid var(--border);
-            padding: 0.3rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            color: var(--primary-light);
-            font-weight: 600;
-            margin-top: 0.5rem;
-        }
-
-        .header-badge::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--primary);
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .status-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 0.75rem;
-            margin-bottom: 1.25rem;
-        }
-
-        .status-item {
-            background: var(--bg-card);
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border-light);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.8rem;
-            transition: all 0.3s ease;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .status-item:hover {
-            border-color: var(--border);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--success);
-            animation: pulse 2s ease-in-out infinite;
-            box-shadow: 0 0 8px var(--success);
-        }
-
-        .status-dot.error {
-            background: var(--danger);
-            box-shadow: 0 0 10px var(--danger);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(0.95); }
-        }
-
-        /* Filter Bar */
-        .filter-bar {
-            display: flex;
-            gap: 0.75rem;
-            margin-bottom: 1.25rem;
-            flex-wrap: wrap;
-            align-items: center;
-            background: var(--bg-card);
-            padding: 0.875rem 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border-light);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .filter-bar select,
-        .filter-bar input {
-            background: var(--bg);
-            border: 1px solid var(--border-light);
-            color: var(--text);
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.8rem;
-            transition: all 0.2s ease;
-            outline: none;
-        }
-
-        .filter-bar select:focus,
-        .filter-bar input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px var(--primary-glow);
-        }
-
-        .filter-bar label {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .refresh-btn {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin-left: auto;
-            box-shadow: var(--shadow-sm);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .refresh-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .refresh-btn:hover::before {
-            left: 100%;
-        }
-
-        .refresh-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md), var(--shadow-glow);
-        }
-
-        .refresh-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .metric-card {
-            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
-            padding: 1.25rem;
-            border-radius: 0.75rem;
-            border: 1px solid var(--border-light);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .metric-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .metric-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--border);
-            box-shadow: var(--shadow-lg), var(--shadow-glow);
-        }
-
-        .metric-card:hover::before {
-            opacity: 1;
-        }
-
-        .metric-card .icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            border-radius: 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            margin-bottom: 0.75rem;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .metric-card .label {
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-weight: 600;
-        }
-
-        .metric-card .value {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: var(--text);
-            margin-bottom: 0.35rem;
-            background: linear-gradient(135deg, var(--text) 0%, var(--text-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .metric-card .subtext {
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-
-        .charts-section {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        @media (max-width: 1024px) {
-            .charts-section {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .chart-card {
-            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(21, 28, 50, 0.8) 100%);
-            padding: 1.25rem;
-            border-radius: 0.75rem;
-            border: 1px solid var(--border-light);
-            transition: all 0.3s ease;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .chart-card:hover {
-            border-color: var(--border);
-            box-shadow: var(--shadow-md);
-        }
-
-        .chart-card h3 {
-            margin-bottom: 1rem;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .chart-card h3::before {
-            content: '';
-            width: 3px;
-            height: 16px;
-            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
-            border-radius: 2px;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 280px;
-        }
-
-        /* Expenses Table */
-        .expenses-table {
-            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(21, 28, 50, 0.8) 100%);
-            border-radius: 0.75rem;
-            border: 1px solid var(--border-light);
-            overflow: hidden;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .expenses-table h3 {
-            padding: 1rem 1.25rem;
-            margin: 0;
-            font-size: 0.95rem;
-            font-weight: 700;
-            border-bottom: 1px solid var(--border-light);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .expenses-table h3::before {
-            content: '';
-            width: 3px;
-            height: 16px;
-            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
-            border-radius: 2px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead th {
-            background: rgba(244, 81, 81, 0.05);
-            padding: 0.75rem 1rem;
-            text-align: left;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-secondary);
-            font-weight: 700;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        tbody td {
-            padding: 0.875rem 1rem;
-            border-top: 1px solid var(--border-light);
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        tbody tr {
-            transition: all 0.2s ease;
-        }
-
-        tbody tr:hover {
-            background: rgba(244, 81, 81, 0.05);
-        }
-
-        tbody tr:hover td {
-            color: var(--text);
-        }
-
-        .categoria-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.25rem 0.65rem;
-            border-radius: 9999px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            box-shadow: 0 2px 6px var(--primary-glow);
-        }
-
-        .monto {
-            font-weight: 700;
-            color: var(--success);
-            font-size: 0.9rem;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-muted);
-        }
-
-        .loading .spinner {
-            border: 2px solid var(--border-light);
-            border-top: 2px solid var(--primary);
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error-message {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid var(--danger);
-            color: var(--danger);
-            padding: 0.875rem;
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
-            font-weight: 500;
-            font-size: 0.85rem;
-            box-shadow: var(--shadow-sm);
-        }
-
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(21, 28, 50, 0.5) 100%);
-            border: 1px solid var(--border-light);
-            border-radius: 0.75rem;
-            margin-top: 1.5rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        footer::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
-        }
-
-        .footer-logo {
-            margin-bottom: 0.75rem;
-        }
-
-        .footer-logo svg {
-            width: 32px;
-            height: 32px;
-            opacity: 0.8;
-        }
-
-        footer p {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            margin-bottom: 0.35rem;
-        }
-
-        footer .brand {
-            color: var(--primary);
-            font-weight: 700;
-            font-size: 0.85rem;
-            margin-top: 0.35rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 0.75rem;
-            }
-
-            header {
-                padding: 1rem;
-            }
-
-            .header-content {
-                flex-direction: column;
-                gap: 0.75rem;
-            }
-
-            .logo-container svg {
-                width: 40px;
-                height: 40px;
-            }
-
-            header h1 {
-                font-size: 1.25rem;
-            }
-
-            .status-bar {
-                grid-template-columns: 1fr;
-            }
-
-            .filter-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .refresh-btn {
-                margin-left: 0;
-            }
-
-            .metrics-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .chart-card {
-                padding: 1rem;
-            }
-
-            .chart-container {
-                height: 240px;
-            }
-
-            table {
-                font-size: 0.75rem;
-            }
-
-            thead th,
-            tbody td {
-                padding: 0.6rem 0.75rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            header h1 {
-                font-size: 1.1rem;
-            }
-
-            .metric-card {
-                padding: 1rem;
-            }
-
-            .metric-card .value {
-                font-size: 1.5rem;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valor Finanzas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0b0b0e;
+  --bg2:      #111115;
+  --bg3:      #18181e;
+  --bg4:      #1e1e26;
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.11);
+  --accent:   #f45151;
+  --accent2:  rgba(244,81,81,0.12);
+  --accent3:  rgba(244,81,81,0.25);
+  --text:     #ededf0;
+  --text2:    #888896;
+  --text3:    #4a4a5a;
+  --success:  #22d3a8;
+  --sidebar:  220px;
+  --radius:   6px;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'Manrope', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; overflow-x: hidden; }
+
+/* ── SIDEBAR ──────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar);
+  min-height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-logo svg { width: 28px; height: 28px; flex-shrink: 0; }
+.sidebar-logo-text { line-height: 1.2; }
+.sidebar-logo-text strong { font-size: 13px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: block; }
+.sidebar-logo-text span { font-size: 10px; color: var(--text2); font-weight: 500; }
+
+.sidebar-section { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+.sidebar-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.period-btn-grid { display: flex; flex-direction: column; gap: 2px; }
+.period-btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text2);
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.period-btn:hover { background: var(--bg3); color: var(--text); }
+.period-btn.active { background: var(--accent2); border-color: var(--accent3); color: var(--accent); font-weight: 600; }
+.period-btn .period-icon { width: 14px; text-align: center; font-size: 11px; }
+
+.custom-range { margin-top: 8px; }
+.custom-range-inputs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.custom-range input[type="date"] {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  width: 100%;
+  outline: none;
+  color-scheme: dark;
+}
+.custom-range input[type="date"]:focus { border-color: var(--accent); }
+.apply-btn {
+  width: 100%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 7px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: opacity 0.15s;
+}
+.apply-btn:hover { opacity: 0.85; }
+
+.cat-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.cat-pill {
+  padding: 4px 9px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--bg3);
+  color: var(--text2);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.cat-pill:hover { color: var(--text); border-color: var(--border2); }
+.cat-pill.active { color: white; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+.export-btn {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.export-btn:hover { border-color: var(--accent3); color: var(--accent); }
+
+/* ── MAIN ──────────────────────────────────────────────────── */
+.main { margin-left: var(--sidebar); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(11,11,14,0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.topbar-period { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.topbar-count { font-size: 11px; color: var(--text2); background: var(--bg3); padding: 2px 8px; border-radius: 100px; }
+.topbar-refresh {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  width: 30px; height: 30px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.topbar-refresh:hover { border-color: var(--accent3); color: var(--accent); }
+.topbar-refresh.spinning { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.topbar-update { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+
+.content { padding: 20px; flex: 1; }
+
+/* ── METRICS ───────────────────────────────────────────────── */
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.metric-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.metric-card:hover { border-color: var(--border2); }
+.metric-card.accent-card { border-color: var(--accent3); background: linear-gradient(135deg, rgba(244,81,81,0.06) 0%, var(--bg2) 100%); }
+.metric-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 6px; }
+.metric-value { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; line-height: 1; }
+.metric-value.big { font-size: 28px; }
+.metric-sub { font-size: 10px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+.metric-card.accent-card .metric-value { color: var(--accent); }
+
+/* ── CHART ─────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.chart-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); }
+.chart-hint { font-size: 10px; color: var(--text3); }
+.chart-container { position: relative; height: 160px; }
+
+/* ── BOTTOM GRID ───────────────────────────────────────────── */
+.bottom-grid { display: grid; grid-template-columns: 260px 1fr; gap: 14px; }
+
+/* Categories panel */
+.categories-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.card-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin-bottom: 12px; }
+.cat-row { margin-bottom: 10px; }
+.cat-row-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+.cat-name { font-size: 12px; font-weight: 600; }
+.cat-amount { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.cat-bar-bg { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+.cat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.cat-pct { font-size: 9px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+
+/* Transactions panel */
+.transactions-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+}
+.transactions-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.search-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  font-family: var(--sans);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input::placeholder { color: var(--text3); }
+.search-input:focus { border-color: var(--accent3); }
+.tx-count-badge { font-size: 10px; color: var(--text3); font-family: var(--mono); white-space: nowrap; }
+
+.tx-table-wrap { overflow: auto; flex: 1; }
+.tx-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tx-table thead th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.tx-table thead th:hover { color: var(--text2); }
+.tx-table thead th.sorted { color: var(--accent); }
+.tx-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.tx-table tbody tr:hover { background: var(--bg3); }
+.tx-table tbody tr:last-child { border-bottom: none; }
+.tx-table td { padding: 9px 12px; vertical-align: middle; }
+.td-date { font-family: var(--mono); font-size: 11px; color: var(--text2); white-space: nowrap; }
+.td-desc { max-width: 180px; }
+.td-desc-main { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-desc-sub { font-size: 10px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-cat { white-space: nowrap; }
+.cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg4);
+}
+.cat-badge-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.td-method { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+.td-amount { font-family: var(--mono); font-weight: 600; text-align: right; white-space: nowrap; color: var(--text); }
+.sort-arrow { opacity: 0.4; font-size: 9px; margin-left: 2px; }
+.sorted .sort-arrow { opacity: 1; }
+
+/* States */
+.loading-state, .empty-state, .error-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text2);
+}
+.loading-state .spinner { width: 20px; height: 20px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 10px; }
+.empty-state { font-size: 13px; }
+.empty-state .empty-icon { font-size: 28px; margin-bottom: 8px; }
+.error-state { color: var(--accent); font-size: 12px; }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  .bottom-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .sidebar { width: 100%; min-height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
+  .main { margin-left: 0; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <div class="logo-container">
-                    <svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M306.465 170.985C312.393 170.355 319.67 172.994 324.307 176.705C329.758 181.063 333.23 187.429 333.943 194.372C334.727 201.633 332.847 206.455 329.207 212.607C326.377 217.392 323.555 222.234 320.73 227.027L299.114 263.738L277.234 300.884C269.158 314.551 265.146 327.031 247.373 328.777C241.212 329.175 235.104 327.407 230.108 323.782C224.644 319.763 220.977 313.762 219.896 307.068C219.244 302.876 219.566 296.982 221.414 293.162C224.282 287.231 228.346 280.84 231.731 275.112L251.262 241.889L275.051 201.479L282.253 189.245C288.979 177.83 292.534 172.966 306.465 170.985Z" fill="#F45151"/>
-                        <path d="M182.452 168.63C197.294 168.213 209.681 179.871 210.165 194.711C210.648 209.551 199.045 221.991 184.208 222.54C169.276 223.094 156.74 211.401 156.253 196.467C155.767 181.533 167.516 169.049 182.452 168.63Z" fill="#F45151"/>
-                        <path d="M207.797 222.469C222.595 221.214 235.62 232.166 236.924 246.96C238.228 261.753 227.32 274.814 212.531 276.167C197.671 277.527 184.535 266.558 183.225 251.692C181.915 236.83 192.929 223.73 207.797 222.469Z" fill="#F45151"/>
-                    </svg>
-                </div>
-                <div class="header-text">
-                    <h1>Valor Finanzas</h1>
-                    <p>Dashboard Inteligente de Control de Gastos</p>
-                    <div class="header-badge">Monitoreo en Tiempo Real</div>
-                </div>
-            </div>
-        </header>
 
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Conectando...</span>
-            </div>
-            <div class="status-item">
-                📅 <span id="currentMonth"></span>
-            </div>
-            <div class="status-item">
-                🕐 Última actualización: <span id="lastUpdate">--:--:--</span>
-            </div>
-        </div>
+<!-- ═══ SIDEBAR ═══════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M306.465 170.985C312.393 170.355 319.67 172.994 324.307 176.705C329.758 181.063 333.23 187.429 333.943 194.372C334.727 201.633 332.847 206.455 329.207 212.607C326.377 217.392 323.555 222.234 320.73 227.027L299.114 263.738L277.234 300.884C269.158 314.551 265.146 327.031 247.373 328.777C241.212 329.175 235.104 327.407 230.108 323.782C224.644 319.763 220.977 313.762 219.896 307.068C219.244 302.876 219.566 296.982 221.414 293.162C224.282 287.231 228.346 280.84 231.731 275.112L251.262 241.889L275.051 201.479L282.253 189.245C288.979 177.83 292.534 172.966 306.465 170.985Z" fill="#f45151"/>
+      <path d="M182.452 168.63C197.294 168.213 209.681 179.871 210.165 194.711C210.648 209.551 199.045 221.991 184.208 222.54C169.276 223.094 156.74 211.401 156.253 196.467C155.767 181.533 167.516 169.049 182.452 168.63Z" fill="#f45151"/>
+      <path d="M207.797 222.469C222.595 221.214 235.62 232.166 236.924 246.96C238.228 261.753 227.32 274.814 212.531 276.167C197.671 277.527 184.535 266.558 183.225 251.692C181.915 236.83 192.929 223.73 207.797 222.469Z" fill="#f45151"/>
+    </svg>
+    <div class="sidebar-logo-text">
+      <strong>Valor Finanzas</strong>
+      <span>Dashboard</span>
+    </div>
+  </div>
 
-        <div class="filter-bar">
-            <label for="monthFilter">Mes:</label>
-            <select id="monthFilter">
-                <option value="current">Mes Actual</option>
-                <option value="last">Mes Anterior</option>
-                <option value="all">Todo el historial</option>
-            </select>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Período</div>
+    <div class="period-btn-grid">
+      <button class="period-btn" data-period="today"><span class="period-icon">◉</span> Hoy</button>
+      <button class="period-btn" data-period="yesterday"><span class="period-icon">◎</span> Ayer</button>
+      <button class="period-btn" data-period="week"><span class="period-icon">▦</span> Esta semana</button>
+      <button class="period-btn active" data-period="month"><span class="period-icon">▣</span> Este mes</button>
+      <button class="period-btn" data-period="lastmonth"><span class="period-icon">◫</span> Mes pasado</button>
+    </div>
+    <div class="custom-range" style="margin-top:10px;">
+      <div class="sidebar-section-label" style="margin-bottom:6px;">Rango personalizado</div>
+      <div class="custom-range-inputs">
+        <input type="date" id="fromDate" title="Desde">
+        <input type="date" id="toDate" title="Hasta">
+      </div>
+      <button class="apply-btn" id="applyRange">Aplicar rango</button>
+    </div>
+  </div>
 
-            <label for="userFilter">Usuario:</label>
-            <input type="number" id="userFilter" placeholder="Todos" style="width: 150px;">
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Categoría</div>
+    <div class="cat-pills" id="catPills">
+      <button class="cat-pill active" data-cat="all">Todas</button>
+    </div>
+  </div>
 
-            <button class="refresh-btn" id="refreshBtn" onclick="loadDashboard()">🔄 Actualizar</button>
-        </div>
+  <div class="sidebar-footer">
+    <button class="export-btn" id="exportBtn">⬇ Exportar CSV</button>
+  </div>
+</aside>
 
-        <div id="errorMessage"></div>
+<!-- ═══ MAIN ═══════════════════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-period" id="topbarPeriod">Este mes</span>
+    <span class="topbar-count" id="topbarCount">— gastos</span>
+    <button class="topbar-refresh" id="refreshBtn" title="Actualizar">↻</button>
+    <span class="topbar-update" id="lastUpdate"></span>
+  </div>
 
-        <div class="metrics-grid" id="metricsGrid">
-            <div class="metric-card">
-                <div class="icon">💵</div>
-                <div class="label">Total Gastado</div>
-                <div class="value" id="totalGastado">$0</div>
-                <div class="subtext" id="totalSubtext">Este período</div>
-            </div>
-            <div class="metric-card">
-                <div class="icon">📊</div>
-                <div class="label">Cantidad de Gastos</div>
-                <div class="value" id="cantidadGastos">0</div>
-                <div class="subtext">Registros</div>
-            </div>
-            <div class="metric-card">
-                <div class="icon">📈</div>
-                <div class="label">Promedio por Gasto</div>
-                <div class="value" id="promedioGasto">$0</div>
-                <div class="subtext">Por transacción</div>
-            </div>
-            <div class="metric-card">
-                <div class="icon">🏆</div>
-                <div class="label">Categoría Principal</div>
-                <div class="value" id="categoriaPrincipal">-</div>
-                <div class="subtext" id="categoriaSubtext">Mayor gasto</div>
-            </div>
-        </div>
-
-        <div class="charts-section">
-            <div class="chart-card">
-                <h3>📊 Gastos por Categoría</h3>
-                <div class="chart-container">
-                    <canvas id="categoriaChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-card">
-                <h3>📈 Distribución</h3>
-                <div class="chart-container">
-                    <canvas id="distribucionChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="chart-card" style="margin-bottom: 1.5rem;">
-            <h3>📉 Evolución Diaria de Gastos</h3>
-            <div class="chart-container">
-                <canvas id="evolucionChart"></canvas>
-            </div>
-        </div>
-
-        <div class="expenses-table">
-            <h3>📝 Últimos Gastos</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Descripción</th>
-                        <th>Categoría</th>
-                        <th>Establecimiento</th>
-                        <th>Monto</th>
-                    </tr>
-                </thead>
-                <tbody id="expensesTableBody">
-                    <tr>
-                        <td colspan="5" class="loading">
-                            <div class="spinner"></div>
-                            Cargando gastos...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <footer>
-            <div class="footer-logo">
-                <svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M306.465 170.985C312.393 170.355 319.67 172.994 324.307 176.705C329.758 181.063 333.23 187.429 333.943 194.372C334.727 201.633 332.847 206.455 329.207 212.607C326.377 217.392 323.555 222.234 320.73 227.027L299.114 263.738L277.234 300.884C269.158 314.551 265.146 327.031 247.373 328.777C241.212 329.175 235.104 327.407 230.108 323.782C224.644 319.763 220.977 313.762 219.896 307.068C219.244 302.876 219.566 296.982 221.414 293.162C224.282 287.231 228.346 280.84 231.731 275.112L251.262 241.889L275.051 201.479L282.253 189.245C288.979 177.83 292.534 172.966 306.465 170.985Z" fill="#F45151"/>
-                    <path d="M182.452 168.63C197.294 168.213 209.681 179.871 210.165 194.711C210.648 209.551 199.045 221.991 184.208 222.54C169.276 223.094 156.74 211.401 156.253 196.467C155.767 181.533 167.516 169.049 182.452 168.63Z" fill="#F45151"/>
-                    <path d="M207.797 222.469C222.595 221.214 235.62 232.166 236.924 246.96C238.228 261.753 227.32 274.814 212.531 276.167C197.671 277.527 184.535 266.558 183.225 251.692C181.915 236.83 192.929 223.73 207.797 222.469Z" fill="#F45151"/>
-                </svg>
-            </div>
-            <p>Dashboard v2.0 | Datos obtenidos de Supabase en tiempo real</p>
-            <p class="brand">© 2026 Valor Finanzas — Todos los derechos reservados</p>
-        </footer>
+  <div class="content">
+    <!-- Metrics -->
+    <div class="metrics-grid">
+      <div class="metric-card accent-card">
+        <div class="metric-label">Total gastado</div>
+        <div class="metric-value big" id="metTotal">—</div>
+        <div class="metric-sub" id="metTotalSub">en el período</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Promedio diario</div>
+        <div class="metric-value" id="metAvgDay">—</div>
+        <div class="metric-sub" id="metAvgDaySub">por día con gastos</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mayor gasto</div>
+        <div class="metric-value" id="metMax">—</div>
+        <div class="metric-sub" id="metMaxSub">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Promedio por tx</div>
+        <div class="metric-value" id="metAvgTx">—</div>
+        <div class="metric-sub" id="metAvgTxSub">— transacciones</div>
+      </div>
     </div>
 
-    <script>
-        // ═══════════════════════════════════════════════════════════
-        // ⚠️ CONFIGURACIÓN — REEMPLAZA CON TUS VALORES REALES
-        // ═══════════════════════════════════════════════════════════
-        const SUPABASE_URL = 'https://nejbepyizibuqulyzqrw.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lamJlcHlpemlidXF1bHl6cXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTE1MTIsImV4cCI6MjA5MTE2NzUxMn0.7-Wn2hLA7RGy5QwVjWK1c8NbgwOBZ5rFYB5Wu1dz-ko'; // ⚠️ Cambiar por tu clave real
-        
-        // Para obtener tu anon key:
-        // 1. Ve a https://app.supabase.com
-        // 2. Selecciona tu proyecto
-        // 3. Settings > API > Project API keys > anon public
-        // ═══════════════════════════════════════════════════════════
+    <!-- Daily chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Evolución diaria</span>
+        <span class="chart-hint">hacé click en una barra para filtrar ese día</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="dailyChart"></canvas>
+      </div>
+    </div>
 
-        let categoriaChartInstance = null;
-        let distribucionChartInstance = null;
-        let evolucionChartInstance = null;
+    <!-- Bottom grid -->
+    <div class="bottom-grid">
+      <!-- Categories -->
+      <div class="categories-card">
+        <div class="card-title">Por categoría</div>
+        <div id="catBreakdown">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
 
-        const CATEGORIA_COLORS = [
-            '#f45151', '#ff6b6b', '#10b981', '#f59e0b', '#8b5cf6',
-            '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#84cc16',
-            '#a855f7', '#0ea5e9'
-        ];
+      <!-- Transactions -->
+      <div class="transactions-card">
+        <div class="transactions-header">
+          <input type="text" class="search-input" id="searchInput" placeholder="Buscar gasto...">
+          <span class="tx-count-badge" id="txCountBadge"></span>
+        </div>
+        <div class="tx-table-wrap">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th data-sort="date" class="sorted">Fecha <span class="sort-arrow">↓</span></th>
+                <th data-sort="desc">Descripción <span class="sort-arrow">↕</span></th>
+                <th data-sort="cat">Categoría <span class="sort-arrow">↕</span></th>
+                <th data-sort="method">Método <span class="sort-arrow">↕</span></th>
+                <th data-sort="amount" style="text-align:right">Monto <span class="sort-arrow">↕</span></th>
+              </tr>
+            </thead>
+            <tbody id="txBody">
+              <tr><td colspan="5"><div class="loading-state"><div class="spinner"></div>Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        // Inicializar
-        document.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-            document.getElementById('currentMonth').textContent = 
-                `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-            
-            loadDashboard();
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG — editar si cambia el proyecto
+// ══════════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://nejbepyizibuqulyzqrw.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lamJlcHlpemlidXF1bHl6cXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTE1MTIsImV4cCI6MjA5MTE2NzUxMn0.7-Wn2hLA7RGy5QwVjWK1c8NbgwOBZ5rFYB5Wu1dz-ko';
+const USER_ID       = 5934626412;
 
-            // Auto-refresh cada 5 minutos
-            setInterval(loadDashboard, 5 * 60 * 1000);
-        });
+const CATEGORIES = ['Alimentos','Transporte','Hogar','Salud','Educación','Ocio','Ropa','Tecnología','Servicios','Facturas','Salidas','Otros'];
+const CAT_COLORS = {
+  'Alimentos':'#f97316','Transporte':'#60a5fa','Hogar':'#a78bfa',
+  'Salud':'#34d399','Educación':'#22d3ee','Ocio':'#fbbf24',
+  'Ropa':'#f472b6','Tecnología':'#818cf8','Servicios':'#2dd4bf',
+  'Facturas':'#94a3b8','Salidas':'#fb7185','Otros':'#9ca3af'
+};
+const METHOD_LABEL = { texto: 'txt', ocr: 'foto', manual: 'manual' };
 
-        async function loadDashboard() {
-            const btn = document.getElementById('refreshBtn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Cargando...';
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let state = {
+  period:    'month',
+  from:      null,
+  to:        null,
+  category:  null,
+  dayFilter: null,
+  sortBy:    'date',
+  sortDir:   'desc',
+  search:    '',
+  allData:   [],
+  loading:   false
+};
 
-            try {
-                await Promise.all([
-                    loadMetrics(),
-                    loadExpensesTable()
-                ]);
-                updateStatus(true);
-            } catch (error) {
-                console.error('Error cargando dashboard:', error);
-                showError('No se pudo conectar con Supabase. Verifica tu API key en el código.');
-                updateStatus(false);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '🔄 Actualizar';
-                document.getElementById('lastUpdate').textContent = 
-                    new Date().toLocaleTimeString('es-AR');
-            }
+let dailyChart = null;
+
+// ══════════════════════════════════════════════════════════════
+// DATE HELPERS
+// ══════════════════════════════════════════════════════════════
+function periodRange(period) {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  switch (period) {
+    case 'today':
+      return { from: new Date(y,m,d), to: new Date(y,m,d+1) };
+    case 'yesterday':
+      return { from: new Date(y,m,d-1), to: new Date(y,m,d) };
+    case 'week': {
+      const day = now.getDay();
+      const start = new Date(y,m,d - day + (day===0?-6:1));
+      const end = new Date(start); end.setDate(start.getDate()+7);
+      return { from: start, to: end };
+    }
+    case 'month':
+      return { from: new Date(y,m,1), to: new Date(y,m+1,1) };
+    case 'lastmonth':
+      return { from: new Date(y,m-1,1), to: new Date(y,m,1) };
+    default:
+      return { from: new Date(y,m,1), to: new Date(y,m+1,1) };
+  }
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit' });
+}
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtMoney(n) {
+  return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits:0, maximumFractionDigits:0 });
+}
+function periodLabel() {
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const labels = { today:'Hoy', yesterday:'Ayer', week:'Esta semana', month:'Este mes', lastmonth:'Mes pasado', custom:'Rango personalizado' };
+  if (state.period !== 'custom') return labels[state.period] || '';
+  if (!state.from || !state.to) return 'Rango personalizado';
+  const f = state.from, t = new Date(state.to); t.setDate(t.getDate()-1);
+  return `${f.getDate()} ${monthNames[f.getMonth()].slice(0,3)} — ${t.getDate()} ${monthNames[t.getMonth()].slice(0,3)}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// FETCH
+// ══════════════════════════════════════════════════════════════
+async function fetchData() {
+  const range = state.period === 'custom'
+    ? { from: state.from, to: state.to }
+    : periodRange(state.period);
+
+  if (!range.from || !range.to) return;
+
+  const params = [
+    `telegram_user_id=eq.${USER_ID}`,
+    `created_at=gte.${range.from.toISOString()}`,
+    `created_at=lt.${range.to.toISOString()}`,
+    `order=created_at.desc`,
+    `limit=1000`,
+    `select=id,monto,categoria,descripcion,establecimiento,created_at,extraction_method`
+  ].join('&');
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/gastos?${params}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    }
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+// ══════════════════════════════════════════════════════════════
+// FILTERED DATA
+// ══════════════════════════════════════════════════════════════
+function getFiltered() {
+  let data = state.allData;
+
+  if (state.category) {
+    data = data.filter(e => e.categoria === state.category);
+  }
+
+  if (state.dayFilter) {
+    data = data.filter(e => e.created_at.slice(0,10) === state.dayFilter);
+  }
+
+  if (state.search.trim()) {
+    const q = state.search.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    data = data.filter(e => {
+      const hay = [e.descripcion,e.establecimiento,e.categoria,e.rawMessage||''].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      return hay.includes(q);
+    });
+  }
+
+  return sortData(data);
+}
+
+function sortData(data) {
+  const dir = state.sortDir === 'asc' ? 1 : -1;
+  return [...data].sort((a,b) => {
+    switch (state.sortBy) {
+      case 'amount': return dir * (a.monto - b.monto);
+      case 'cat':    return dir * (a.categoria||'').localeCompare(b.categoria||'');
+      case 'desc':   return dir * ((a.descripcion||a.establecimiento||'').localeCompare(b.descripcion||b.establecimiento||''));
+      case 'method': return dir * ((a.extraction_method||'').localeCompare(b.extraction_method||''));
+      default:       return dir * (new Date(a.created_at) - new Date(b.created_at));
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════
+function renderAll() {
+  const filtered = getFiltered();
+  renderMetrics(filtered);
+  renderDailyChart();
+  renderCategories(filtered);
+  renderTable(filtered);
+  document.getElementById('topbarCount').textContent = `${filtered.length} gasto${filtered.length!==1?'s':''}`;
+}
+
+function renderMetrics(data) {
+  if (!data.length) {
+    ['metTotal','metAvgDay','metMax','metAvgTx'].forEach(id => {
+      document.getElementById(id).textContent = fmtMoney(0);
+    });
+    return;
+  }
+  const total = data.reduce((s,e) => s+e.monto, 0);
+  const days  = new Set(data.map(e=>e.created_at.slice(0,10))).size;
+  const max   = data.reduce((m,e) => e.monto > m.monto ? e : m, data[0]);
+
+  document.getElementById('metTotal').textContent    = fmtMoney(total);
+  document.getElementById('metTotalSub').textContent = `en ${data.length} tx`;
+  document.getElementById('metAvgDay').textContent   = fmtMoney(days ? total/days : 0);
+  document.getElementById('metAvgDaySub').textContent= `${days} día${days!==1?'s':''} con gastos`;
+  document.getElementById('metMax').textContent      = fmtMoney(max.monto);
+  document.getElementById('metMaxSub').textContent   = max.descripcion || max.establecimiento || max.categoria || '—';
+  document.getElementById('metAvgTx').textContent    = fmtMoney(total/data.length);
+  document.getElementById('metAvgTxSub').textContent = `${data.length} transacciones`;
+}
+
+function renderDailyChart() {
+  const range = state.period === 'custom'
+    ? { from: state.from, to: state.to }
+    : periodRange(state.period);
+
+  // Build day map using base data (before day filter, but after category filter)
+  let base = state.allData;
+  if (state.category) base = base.filter(e => e.categoria === state.category);
+
+  const dayMap = {};
+  base.forEach(e => {
+    const d = e.created_at.slice(0,10);
+    dayMap[d] = (dayMap[d]||0) + e.monto;
+  });
+
+  // Build labels array from range
+  const labels = [], values = [], colors = [];
+  const cur = new Date(range.from);
+  const end = new Date(range.to);
+  while (cur < end) {
+    const key = cur.toISOString().slice(0,10);
+    labels.push(fmtDate(key));
+    const val = dayMap[key] || 0;
+    values.push(val);
+    colors.push(state.dayFilter === key ? '#f45151' : val > 0 ? 'rgba(244,81,81,0.55)' : 'rgba(255,255,255,0.06)');
+    cur.setDate(cur.getDate()+1);
+  }
+
+  const ctx = document.getElementById('dailyChart').getContext('2d');
+
+  if (dailyChart) { dailyChart.destroy(); dailyChart = null; }
+
+  // Compact view if too many days
+  const dayCount = labels.length;
+  const maxLabels = dayCount > 60 ? 10 : dayCount > 30 ? 15 : dayCount;
+
+  dailyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderRadius: 3, borderSkipped: false }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => fmtMoney(ctx.parsed.y),
+            title: ctx => ctx[0].label
+          },
+          backgroundColor: '#18181e',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#ededf0',
+          bodyColor: '#f45151',
+          bodyFont: { family: "'IBM Plex Mono', monospace", size: 13 }
         }
-
-        async function loadMetrics() {
-            const filter = document.getElementById('monthFilter').value;
-            const userId = document.getElementById('userFilter').value;
-
-            let startDate, endDate;
-            const now = new Date();
-
-            if (filter === 'current') {
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-            } else if (filter === 'last') {
-                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                endDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            } else {
-                startDate = new Date(2020, 0, 1);
-                endDate = new Date(now.getFullYear() + 1, 0, 1);
-            }
-
-            let url = `${SUPABASE_URL}/rest/v1/gastos?select=monto,categoria,created_at&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&order=created_at.desc`;
-
-            if (userId) {
-                url = `${SUPABASE_URL}/rest/v1/gastos?select=monto,categoria,created_at&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&telegram_user_id=eq.${userId}&order=created_at.desc`;
-            }
-
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                cache: 'no-store'
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-            const data = await response.json();
-
-            if (!data || data.length === 0) {
-                document.getElementById('totalGastado').textContent = '$0';
-                document.getElementById('cantidadGastos').textContent = '0';
-                document.getElementById('promedioGasto').textContent = '$0';
-                document.getElementById('categoriaPrincipal').textContent = '-';
-                return;
-            }
-
-            // Métricas básicas
-            const total = data.reduce((sum, g) => sum + g.monto, 0);
-            const cantidad = data.length;
-            const promedio = total / cantidad;
-
-            document.getElementById('totalGastado').textContent = formatMoney(total);
-            document.getElementById('cantidadGastos').textContent = cantidad;
-            document.getElementById('promedioGasto').textContent = formatMoney(promedio);
-
-            // Categoría principal
-            const categoriaTotals = {};
-            data.forEach(g => {
-                const cat = g.categoria || 'Otros';
-                categoriaTotals[cat] = (categoriaTotals[cat] || 0) + g.monto;
-            });
-
-            const sortedCategorias = Object.entries(categoriaTotals)
-                .sort((a, b) => b[1] - a[1]);
-
-            if (sortedCategorias.length > 0) {
-                document.getElementById('categoriaPrincipal').textContent = sortedCategorias[0][0];
-                const pct = ((sortedCategorias[0][1] / total) * 100).toFixed(1);
-                document.getElementById('categoriaSubtext').textContent = 
-                    `${pct}% del total`;
-            }
-
-            // Gráficos
-            updateCategoriaChart(sortedCategorias);
-            updateDistribucionChart(sortedCategorias);
-            updateEvolucionChart(data.filter(g => g.created_at));
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#4a4a5a',
+            font: { family: "'IBM Plex Mono', monospace", size: 9 },
+            maxTicksLimit: maxLabels,
+            maxRotation: 0
+          },
+          border: { color: 'rgba(255,255,255,0.08)' }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#4a4a5a',
+            font: { family: "'IBM Plex Mono', monospace", size: 9 },
+            callback: v => v >= 1000 ? '$' + (v/1000).toFixed(0) + 'k' : '$' + v
+          },
+          border: { color: 'rgba(255,255,255,0.08)' }
         }
-
-        async function loadExpensesTable() {
-            const filter = document.getElementById('monthFilter').value;
-            const userId = document.getElementById('userFilter').value;
-
-            let startDate, endDate;
-            const now = new Date();
-
-            if (filter === 'current') {
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-            } else if (filter === 'last') {
-                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                endDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            } else {
-                startDate = new Date(2020, 0, 1);
-                endDate = new Date(now.getFullYear() + 1, 0, 1);
-            }
-
-            let url = `${SUPABASE_URL}/rest/v1/gastos?select=*&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&order=created_at.desc&limit=20`;
-
-            if (userId) {
-                url = `${SUPABASE_URL}/rest/v1/gastos?select=*&created_at=gte.${startDate.toISOString()}&created_at=lt.${endDate.toISOString()}&telegram_user_id=eq.${userId}&order=created_at.desc&limit=20`;
-            }
-
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                cache: 'no-store'
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-            const data = await response.json();
-
-            const tbody = document.getElementById('expensesTableBody');
-
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                            No hay gastos registrados en este período
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = data.map(gasto => `
-                <tr>
-                    <td>${formatDate(gasto.created_at)}</td>
-                    <td>${gasto.descripcion || '-'}</td>
-                    <td><span class="categoria-badge">${gasto.categoria}</span></td>
-                    <td>${gasto.establecimiento || '-'}</td>
-                    <td class="monto">${formatMoney(gasto.monto)}</td>
-                </tr>
-            `).join('');
+      },
+      onClick: (evt, elements) => {
+        if (!elements.length) {
+          if (state.dayFilter) { state.dayFilter = null; renderAll(); }
+          return;
         }
-
-        function updateCategoriaChart(sortedCategorias) {
-            const ctx = document.getElementById('categoriaChart').getContext('2d');
-
-            if (categoriaChartInstance) {
-                categoriaChartInstance.destroy();
-            }
-
-            categoriaChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: sortedCategorias.map(([cat]) => cat),
-                    datasets: [{
-                        label: 'Total gastado ($)',
-                        data: sortedCategorias.map(([, total]) => total),
-                        backgroundColor: CATEGORIA_COLORS.slice(0, sortedCategorias.length),
-                        borderRadius: 8,
-                        borderSkipped: false,
-                        barThickness: 'flex',
-                        maxBarThickness: 50
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 800,
-                        easing: 'easeOutQuart'
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#151c32',
-                            titleColor: '#f8fafc',
-                            bodyColor: '#f8fafc',
-                            borderColor: 'rgba(244, 81, 81, 0.3)',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            padding: 12,
-                            displayColors: false,
-                            callbacks: {
-                                label: (context) => `Total: ${formatMoney(context.parsed.y)}`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { 
-                                color: 'rgba(255, 255, 255, 0.05)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#64748b',
-                                padding: 8,
-                                callback: (value) => formatMoney(value)
-                            },
-                            border: {
-                                display: false
-                            }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { 
-                                color: '#64748b',
-                                padding: 8,
-                                maxRotation: 45
-                            },
-                            border: {
-                                display: false
-                            }
-                        }
-                    }
-                }
-            });
+        const idx = elements[0].index;
+        // Rebuild keys array to find day
+        const cur2 = new Date(range.from);
+        let i = 0;
+        while (cur2 < new Date(range.to)) {
+          if (i === idx) {
+            const key = cur2.toISOString().slice(0,10);
+            state.dayFilter = state.dayFilter === key ? null : key;
+            renderAll();
+            return;
+          }
+          cur2.setDate(cur2.getDate()+1); i++;
         }
+      }
+    }
+  });
+}
 
-        function updateDistribucionChart(sortedCategorias) {
-            const ctx = document.getElementById('distribucionChart').getContext('2d');
+function renderCategories(data) {
+  const el = document.getElementById('catBreakdown');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div>Sin datos</div>'; return; }
 
-            if (distribucionChartInstance) {
-                distribucionChartInstance.destroy();
-            }
+  const totals = {};
+  data.forEach(e => { totals[e.categoria||'Otros'] = (totals[e.categoria||'Otros']||0) + e.monto; });
+  const total = Object.values(totals).reduce((s,v)=>s+v,0);
+  const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
 
-            distribucionChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: sortedCategorias.map(([cat]) => cat),
-                    datasets: [{
-                        data: sortedCategorias.map(([, total]) => total),
-                        backgroundColor: CATEGORIA_COLORS.slice(0, sortedCategorias.length),
-                        borderWidth: 2,
-                        borderColor: '#151c32',
-                        hoverOffset: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 800,
-                        easing: 'easeOutQuart'
-                    },
-                    cutout: '65%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#64748b',
-                                padding: 12,
-                                usePointStyle: true,
-                                pointStyleWidth: 10,
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: '#151c32',
-                            titleColor: '#f8fafc',
-                            bodyColor: '#f8fafc',
-                            borderColor: 'rgba(244, 81, 81, 0.3)',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            padding: 12,
-                            callbacks: {
-                                label: (context) => {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const pct = ((context.parsed / total) * 100).toFixed(1);
-                                    return `${context.label}: ${formatMoney(context.parsed)} (${pct}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+  el.innerHTML = sorted.map(([cat,amt]) => {
+    const pct = ((amt/total)*100).toFixed(1);
+    const color = CAT_COLORS[cat] || '#9ca3af';
+    return `
+      <div class="cat-row">
+        <div class="cat-row-header">
+          <span class="cat-name" style="color:${color}">${cat}</span>
+          <span class="cat-amount">${fmtMoney(amt)}</span>
+        </div>
+        <div class="cat-bar-bg">
+          <div class="cat-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="cat-pct">${pct}%</div>
+      </div>`;
+  }).join('');
+}
+
+function renderTable(data) {
+  const body = document.getElementById('txBody');
+  document.getElementById('txCountBadge').textContent = `${data.length} registros`;
+
+  if (!data.length) {
+    body.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div>Sin resultados</div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = data.map(e => {
+    const color = CAT_COLORS[e.categoria] || '#9ca3af';
+    const desc  = e.descripcion || e.establecimiento || '—';
+    const sub   = e.descripcion && e.establecimiento ? e.establecimiento : '';
+    const method = METHOD_LABEL[e.extraction_method] || e.extraction_method || 'txt';
+    return `
+      <tr>
+        <td class="td-date">${fmtDateTime(e.created_at)}</td>
+        <td class="td-desc">
+          <div class="td-desc-main" title="${desc}">${desc}</div>
+          ${sub ? `<div class="td-desc-sub">${sub}</div>` : ''}
+        </td>
+        <td class="td-cat">
+          <span class="cat-badge">
+            <span class="cat-badge-dot" style="background:${color}"></span>
+            ${e.categoria||'Otros'}
+          </span>
+        </td>
+        <td class="td-method">${method}</td>
+        <td class="td-amount">${fmtMoney(e.monto)}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderCatPills() {
+  const container = document.getElementById('catPills');
+  const allBtn = `<button class="cat-pill ${!state.category?'active':''}" data-cat="all">Todas</button>`;
+  const pills = CATEGORIES.map(cat => {
+    const color = CAT_COLORS[cat];
+    const active = state.category === cat;
+    const style = active ? `background:${color};border-color:${color};color:white` : '';
+    return `<button class="cat-pill ${active?'active':''}" data-cat="${cat}" style="${style}">${cat}</button>`;
+  }).join('');
+  container.innerHTML = allBtn + pills;
+  container.querySelectorAll('.cat-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.category = btn.dataset.cat === 'all' ? null : btn.dataset.cat;
+      state.dayFilter = null;
+      renderCatPills();
+      renderAll();
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// LOAD
+// ══════════════════════════════════════════════════════════════
+async function load() {
+  if (state.loading) return;
+  state.loading = true;
+
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.classList.add('spinning');
+
+  try {
+    state.allData = await fetchData();
+    document.getElementById('topbarPeriod').textContent = periodLabel();
+    renderAll();
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  } catch(err) {
+    console.error(err);
+    document.getElementById('txBody').innerHTML = `<tr><td colspan="5"><div class="error-state">⚠ Error conectando con Supabase: ${err.message}</div></td></tr>`;
+  } finally {
+    state.loading = false;
+    refreshBtn.classList.remove('spinning');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════════════════════
+function initEvents() {
+  // Period buttons
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.period = btn.dataset.period;
+      state.dayFilter = null;
+      load();
+    });
+  });
+
+  // Custom range
+  document.getElementById('applyRange').addEventListener('click', () => {
+    const from = document.getElementById('fromDate').value;
+    const to   = document.getElementById('toDate').value;
+    if (!from || !to) return;
+    state.period = 'custom';
+    state.from = new Date(from + 'T00:00:00');
+    state.to   = new Date(to   + 'T23:59:59');
+    state.to.setDate(state.to.getDate()+1);
+    state.dayFilter = null;
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    load();
+  });
+
+  // Refresh
+  document.getElementById('refreshBtn').addEventListener('click', load);
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', e => {
+    state.search = e.target.value;
+    renderAll();
+  });
+
+  // Sort headers
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (state.sortBy === col) {
+        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortBy  = col;
+        state.sortDir = col === 'amount' ? 'desc' : col === 'date' ? 'desc' : 'asc';
+      }
+      document.querySelectorAll('th[data-sort]').forEach(h => {
+        h.classList.toggle('sorted', h.dataset.sort === col);
+        const arrow = h.querySelector('.sort-arrow');
+        if (h.dataset.sort === col) {
+          arrow.textContent = state.sortDir === 'asc' ? '↑' : '↓';
+        } else {
+          arrow.textContent = '↕';
         }
+      });
+      renderTable(getFiltered());
+    });
+  });
 
-        function updateEvolucionChart(gastos) {
-            const ctx = document.getElementById('evolucionChart').getContext('2d');
+  // Export CSV
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const data = getFiltered();
+    if (!data.length) return;
+    const rows = [['Fecha','Descripción','Establecimiento','Categoría','Monto','Método']];
+    data.forEach(e => rows.push([
+      e.created_at, e.descripcion||'', e.establecimiento||'',
+      e.categoria||'', e.monto, e.extraction_method||''
+    ]));
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `gastos-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  });
+}
 
-            if (evolucionChartInstance) {
-                evolucionChartInstance.destroy();
-            }
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Default custom date inputs to current month
+  const now = new Date();
+  document.getElementById('fromDate').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  document.getElementById('toDate').value   = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
 
-            // Agrupar por día
-            const dailyTotals = {};
-            gastos.forEach(g => {
-                const date = new Date(g.created_at).toLocaleDateString('es-AR');
-                dailyTotals[date] = (dailyTotals[date] || 0) + g.monto;
-            });
+  renderCatPills();
+  initEvents();
+  load();
 
-            const sortedDates = Object.keys(dailyTotals).sort((a, b) => {
-                return new Date(a.split('/').reverse().join('-')) - new Date(b.split('/').reverse().join('-'));
-            });
-
-            // Calcular acumulado
-            let acumulado = 0;
-            const acumuladoData = sortedDates.map(date => {
-                acumulado += dailyTotals[date];
-                return acumulado;
-            });
-
-            evolucionChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: sortedDates,
-                    datasets: [
-                        {
-                            label: 'Gasto diario ($)',
-                            data: sortedDates.map(date => dailyTotals[date]),
-                            borderColor: '#f45151',
-                            backgroundColor: 'rgba(244, 81, 81, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 4,
-                            pointHoverRadius: 7,
-                            pointBackgroundColor: '#f45151',
-                            pointBorderColor: '#151c32',
-                            pointBorderWidth: 2,
-                            pointHoverBackgroundColor: '#ff6b6b',
-                            pointHoverBorderColor: '#151c32',
-                            pointHoverBorderWidth: 2,
-                            borderWidth: 3
-                        },
-                        {
-                            label: 'Acumulado ($)',
-                            data: acumuladoData,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 3,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor: '#10b981',
-                            pointBorderColor: '#151c32',
-                            pointBorderWidth: 2,
-                            pointHoverBackgroundColor: '#34d399',
-                            pointHoverBorderColor: '#151c32',
-                            pointHoverBorderWidth: 2,
-                            borderWidth: 2,
-                            borderDash: [5, 5]
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeOutQuart'
-                    },
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    },
-                    plugins: {
-                        legend: {
-                            labels: { 
-                                color: '#64748b',
-                                usePointStyle: true,
-                                padding: 15
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: '#151c32',
-                            titleColor: '#f8fafc',
-                            bodyColor: '#f8fafc',
-                            borderColor: 'rgba(244, 81, 81, 0.3)',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            padding: 12,
-                            mode: 'index'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { 
-                                color: 'rgba(255, 255, 255, 0.05)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#64748b',
-                                padding: 8,
-                                callback: (value) => formatMoney(value)
-                            },
-                            border: {
-                                display: false
-                            }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { 
-                                color: '#64748b',
-                                padding: 8,
-                                maxRotation: 45
-                            },
-                            border: {
-                                display: false
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // Supabase Query Helper (sin SDK, solo fetch)
-        // ═══════════════════════════════════════════════════════════
-        class QueryBuilder {
-            constructor(table) {
-                this._table = table;
-                this._select = '*';
-                this._filters = [];
-                this._order = null;
-                this._limit = null;
-            }
-
-            select(columns) {
-                this._select = columns;
-                return this;
-            }
-
-            eq(column, value) {
-                this._filters.push({ type: 'eq', column, value });
-                return this;
-            }
-
-            gte(column, value) {
-                this._filters.push({ type: 'gte', column, value });
-                return this;
-            }
-
-            lt(column, value) {
-                this._filters.push({ type: 'lt', column, value });
-                return this;
-            }
-
-            order(column, { ascending } = {}) {
-                this._order = { column, ascending };
-                return this;
-            }
-
-            limit(n) {
-                this._limit = n;
-                return this;
-            }
-
-            async execute() {
-                const params = new URLSearchParams();
-                params.set('select', this._select);
-
-                this._filters.forEach(f => {
-                    params.append(f.column, `${f.type === 'eq' ? 'eq.' : f.type === 'gte' ? 'gte.' : 'lt.'}${f.value}`);
-                });
-
-                if (this._order) {
-                    const dir = this._order.ascending ? 'asc' : 'desc';
-                    params.set('order', `${this._order.column}.${dir}`);
-                }
-
-                if (this._limit) {
-                    params.set('limit', this._limit);
-                }
-
-                const url = `${SUPABASE_URL}/rest/v1/${this._table}?${params.toString()}`;
-
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                return { data, error: null };
-            }
-        }
-
-        function supabaseQuery(table) {
-            return new QueryBuilder(table);
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // Utilidades
-        // ═══════════════════════════════════════════════════════════
-        function formatMoney(amount) {
-            return '$' + amount.toLocaleString('es-AR', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('es-AR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        function updateStatus(connected) {
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('statusText');
-
-            if (connected) {
-                dot.classList.remove('error');
-                text.textContent = '✅ Conectado a Supabase';
-            } else {
-                dot.classList.add('error');
-                text.textContent = '❌ Error de conexión';
-            }
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.innerHTML = `<div class="error-message">⚠️ ${message}</div>`;
-            setTimeout(() => {
-                errorDiv.innerHTML = '';
-            }, 10000);
-        }
-
-        // Recargar al cambiar filtros
-        document.getElementById('monthFilter').addEventListener('change', loadDashboard);
-        document.getElementById('userFilter').addEventListener('change', loadDashboard);
-    </script>
+  // Auto-refresh every 5 minutes
+  setInterval(load, 5 * 60 * 1000);
+});
+</script>
 </body>
 </html>
