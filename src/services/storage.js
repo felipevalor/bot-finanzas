@@ -35,9 +35,28 @@ export async function isDuplicate(telegramUserId, messageId) {
  * @param {string|null} params.descripcion
  * @param {string|null} params.establecimiento
  * @param {string} params.rawMessage
+ * @param {string|null} [params.receiptPhotoUrl]
+ * @param {string|null} [params.receiptPhotoFileId]
+ * @param {string|null} [params.ocrConfidence]
+ * @param {string} [params.extractionMethod]
+ * @param {string|null} [params.fechaRecibo]
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function saveExpense({ telegramUserId, chatId, messageId, monto, categoria, descripcion, establecimiento, rawMessage }) {
+export async function saveExpense({
+  telegramUserId,
+  chatId,
+  messageId,
+  monto,
+  categoria,
+  descripcion,
+  establecimiento,
+  rawMessage,
+  receiptPhotoUrl = null,
+  receiptPhotoFileId = null,
+  ocrConfidence = null,
+  extractionMethod = 'texto',
+  fechaRecibo = null
+}) {
   const { error } = await supabase
     .from('gastos')
     .insert({
@@ -49,6 +68,11 @@ export async function saveExpense({ telegramUserId, chatId, messageId, monto, ca
       descripcion,
       establecimiento,
       raw_message: rawMessage,
+      receipt_photo_url: receiptPhotoUrl,
+      receipt_photo_file_id: receiptPhotoFileId,
+      ocr_confidence: ocrConfidence,
+      extraction_method: extractionMethod,
+      fecha_recibo: fechaRecibo,
       created_at: new Date().toISOString()
     });
 
@@ -64,7 +88,7 @@ export async function saveExpense({ telegramUserId, chatId, messageId, monto, ca
     return { success: false, error: error.message };
   }
 
-  logger.info('Gasto guardado', { telegramUserId, messageId, monto, categoria });
+  logger.info('Gasto guardado', { telegramUserId, messageId, monto, categoria, extractionMethod });
   return { success: true };
 }
 
@@ -114,6 +138,135 @@ export async function getRecentExpenses(telegramUserId, limit = 10) {
 }
 
 /**
+ * Busca gastos con filtros inteligentes (usa keywords en descripción/establecimiento/categoría).
+ * @param {number} telegramUserId
+ * @param {object} filters
+ * @param {string[]} [filters.keywords] - Palabras clave para buscar en descripción/establecimiento
+ * @param {string} [filters.category] - Categoría exacta
+ * @param {string} [filters.timeReference] - "hoy", "ayer", "esta semana", "este mes"
+ * @param {boolean} [filters.isLast] - Si true, devuelve solo el más reciente
+ * @param {number} [filters.expenseId] - ID explícito
+ * @param {number} [limit=50]
+ * @returns {Promise<Array<{id: number, monto: number, categoria: string, descripcion: string|null, establecimiento: string|null, created_at: string, matchScore?: number}>>}
+ */
+export async function searchExpenses(telegramUserId, filters, limit = 50) {
+  let query = supabase
+    .from('gastos')
+    .select('id, monto, categoria, descripcion, establecimiento, created_at, raw_message')
+    .eq('telegram_user_id', telegramUserId)
+    .order('created_at', { ascending: false });
+
+  // Filtro por ID explícito
+  if (filters.expenseId) {
+    query = query.eq('id', filters.expenseId);
+  }
+
+  // Filtro por categoría
+  if (filters.category) {
+    query = query.eq('categoria', filters.category);
+  }
+
+  // Filtro por keywords → push a Supabase con ilike (más eficiente que filtrar en memoria)
+  if (filters.keywords && filters.keywords.length > 0) {
+    const orParts = [];
+    for (const keyword of filters.keywords) {
+      orParts.push(`descripcion.ilike.%${keyword}%`);
+      orParts.push(`establecimiento.ilike.%${keyword}%`);
+      orParts.push(`raw_message.ilike.%${keyword}%`);
+      orParts.push(`categoria.ilike.%${keyword}%`);
+    }
+    query = query.or(orParts.join(','));
+  }
+
+  // Filtro por tiempo
+  if (filters.timeReference) {
+    const now = new Date();
+    let startDate;
+    let endDate;
+
+    switch (filters.timeReference.toLowerCase()) {
+      case 'hoy':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        break;
+      case 'ayer': {
+        const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        startOfYesterday.setHours(0, 0, 0, 0);
+        startDate = startOfYesterday.toISOString();
+        const endOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endOfYesterday.setHours(0, 0, 0, 0);
+        endDate = endOfYesterday.toISOString();
+        break;
+      }
+      case 'esta semana': {
+        const dayOfWeek = now.getDay();
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+        startDate = startOfWeek.toISOString();
+        break;
+      }
+      case 'este mes':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        break;
+      default:
+        startDate = null;
+    }
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lt('created_at', endDate);
+    }
+  }
+
+  // Si es "último", limitamos a 1
+  if (filters.isLast) {
+    query = query.limit(1);
+  } else {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('Error buscando gastos', { telegramUserId, error: error.message });
+    return [];
+  }
+
+  let results = data || [];
+
+  // Ranking por relevancia (la DB ya filtró, esto solo ordena por score)
+  if (filters.keywords && filters.keywords.length > 0) {
+    results = results.map((expense) => {
+      const searchableText = [
+        expense.descripcion || '',
+        expense.establecimiento || '',
+        expense.raw_message || '',
+        expense.categoria || ''
+      ].join(' ').toLowerCase();
+      const normalizedText = searchableText.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+      let score = 0;
+      for (const keyword of filters.keywords) {
+        const normalizedKeyword = keyword.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        if (normalizedText.includes(normalizedKeyword)) {
+          score += 1;
+          if (normalizedText.startsWith(normalizedKeyword)) {
+            score += 0.5;
+          }
+        }
+      }
+
+      return { ...expense, matchScore: score };
+    }).sort((a, b) => b.matchScore - a.matchScore);
+  }
+
+  return results;
+}
+
+/**
  * Elimina un gasto por ID (con verificación de propiedad).
  * @param {number} expenseId
  * @param {number} telegramUserId
@@ -156,4 +309,55 @@ export async function updateExpense(expenseId, telegramUserId, updates) {
 
   logger.info('Gasto actualizado', { expenseId, telegramUserId, fields: Object.keys(updates) });
   return { success: true };
+}
+
+/**
+ * Uploads receipt photo to Supabase Storage.
+ * @param {Buffer} imageBuffer - Compressed image
+ * @param {number} userId - Telegram user ID
+ * @param {number} messageId - Telegram message ID
+ * @returns {Promise<{url: string, path: string}>}
+ */
+export async function uploadReceipt(imageBuffer, userId, messageId) {
+  try {
+    const fileName = `${userId}/${messageId}_${Date.now()}.jpg`;
+    const filePath = fileName;
+
+    const { data, error } = await supabase.storage
+      .from('receipt-photos')
+      .upload(filePath, imageBuffer, {
+        contentType: 'image/jpeg',
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      logger.error('Supabase Storage upload error', {
+        userId,
+        messageId,
+        error: error.message
+      });
+      throw error;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('receipt-photos')
+      .getPublicUrl(filePath);
+
+    logger.info('Receipt uploaded to Supabase Storage', {
+      userId,
+      messageId,
+      filePath,
+      url: urlData.publicUrl
+    });
+
+    return {
+      url: urlData.publicUrl,
+      path: filePath
+    };
+  } catch (err) {
+    logger.error('Error uploading receipt', { userId, messageId, error: err.message });
+    throw err;
+  }
 }

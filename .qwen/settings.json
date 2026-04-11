@@ -5,7 +5,10 @@
       "Bash(git commit *)",
       "Bash(timeout *)",
       "Bash(true)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "WebSearch",
+      "WebFetch(console.groq.com)",
+      "Bash(npm install *)"
     ]
   },
   "$version": 3

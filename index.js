@@ -2,12 +2,15 @@
 import express from 'express';
 import config from './src/config/env.js';
 import logger from './src/utils/logger.js';
-import { sendTyping, sendMessage, setWebhook, answerCallbackQuery } from './src/services/telegram.js';
+import { sendTyping, sendMessage, setWebhook, answerCallbackQuery, downloadFile } from './src/services/telegram.js';
 import { parseExpense } from './src/services/parser.js';
-import { isDuplicate, saveExpense, getMonthlyTotal } from './src/services/storage.js';
+import { isDuplicate, saveExpense, getMonthlyTotal, uploadReceipt } from './src/services/storage.js';
 import { getResumen } from './src/services/resumen.js';
 import supabase from './src/config/supabase.js';
 import groq from './src/config/groq.js';
+import { detectIntent } from './src/services/intentDetector.js';
+import { parseReceiptPhoto } from './src/services/receiptParser.js';
+import { compressImage, getLargestPhoto } from './src/utils/imageProcessor.js';
 import {
   handleEliminarCommand,
   handleEditarCommand,
@@ -20,7 +23,9 @@ import {
   handleEditInput,
   cleanupExpiredSessions,
   handleDeleteById,
-  handleEditById
+  handleEditById,
+  handleDeleteByDescription,
+  handleEditByDescription
 } from './src/services/expenseManager.js';
 import { startKeepAlive } from './src/services/keepAlive.js';
 
@@ -112,7 +117,24 @@ app.post('/webhook', (req, res) => {
   }
 
   const message = req.body?.message;
-  if (!message || !message.text || !message.from) {
+  if (!message || !message.from) {
+    return;
+  }
+
+  // Handle photo messages
+  if (message.photo && message.photo.length > 0) {
+    enqueue(() => handlePhotoMessage({
+      chatId: message.chat.id,
+      userId: message.from.id,
+      messageId: message.message_id,
+      photos: message.photo,
+      caption: message.caption || null
+    }));
+    return;
+  }
+
+  // Handle text messages
+  if (!message.text) {
     return;
   }
 
@@ -156,6 +178,125 @@ async function handleCallbackQuery(query) {
   }
 }
 
+// ─── Handler para fotos de recibos ──────────────────────────────────────
+async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }) {
+  const startTime = Date.now();
+
+  try {
+    // Typing indicator
+    await sendTyping(chatId);
+
+    // Get largest photo (best quality for OCR)
+    const largestPhoto = getLargestPhoto(photos);
+    const fileId = largestPhoto.file_id;
+
+    logger.info('Processing receipt photo', { userId, fileId, fileSize: largestPhoto.file_size });
+
+    // Download image from Telegram
+    const imageBuffer = await downloadFile(fileId);
+
+    // Compress image if needed (max 3.5MB for Groq API)
+    const compressedImage = await compressImage(imageBuffer, 3.5);
+
+    // Free memory
+    imageBuffer.length = 0;
+
+    // OCR with Groq Vision
+    const parsed = await parseReceiptPhoto(compressedImage);
+
+    if (parsed.error || parsed.monto === null || parsed.monto === undefined) {
+      await sendMessage(chatId,
+        '⚠️ No pude leer claramente el recibo. Podés:\n\n' +
+        '1️⃣ Intentar de nuevo con otra foto (mejor iluminación)\n' +
+        '2️⃣ Enviarme los datos manualmente: "5000 cena restaurante"'
+      );
+      return;
+    }
+
+    // Upload to Supabase Storage
+    let uploadResult = null;
+    try {
+      uploadResult = await uploadReceipt(compressedImage, userId, messageId);
+    } catch (err) {
+      logger.error('Failed to upload receipt photo, continuing without it', {
+        userId,
+        messageId,
+        error: err.message
+      });
+      // Continue saving expense without photo URL
+    }
+
+    // Save expense with receipt metadata
+    const result = await saveExpense({
+      telegramUserId: userId,
+      chatId,
+      messageId,
+      monto: parsed.monto,
+      categoria: parsed.categoria,
+      descripcion: parsed.descripcion || caption,
+      establecimiento: parsed.establecimiento,
+      rawMessage: caption || '📷 Foto de recibo',
+      receiptPhotoUrl: uploadResult?.url || null,
+      receiptPhotoFileId: fileId,
+      ocrConfidence: parsed.confianza || 'media',
+      extractionMethod: 'ocr',
+      fechaRecibo: parsed.fecha
+    });
+
+    if (!result.success) {
+      await sendMessage(chatId, '❌ No pude guardar el registro. Reintentá.');
+      return;
+    }
+
+    // Monthly total
+    const monthlyTotal = await getMonthlyTotal(userId);
+
+    // Confirmation message
+    let response = `✅ *Recibo procesado*\n\n`;
+    response += `💸 *Monto*: $${formatNumber(parsed.monto)}\n`;
+    response += `🏷️ *Categoría*: ${parsed.categoria}\n`;
+    if (parsed.establecimiento) {
+      response += `🏪 *Establecimiento*: ${parsed.establecimiento}\n`;
+    }
+    if (parsed.fecha) {
+      response += `📅 *Fecha del recibo*: ${parsed.fecha}\n`;
+    }
+    response += `\n🔍 *Confianza OCR*: ${parsed.confianza || 'media'}\n`;
+    response += `📅 *Total del mes*: $${formatNumber(monthlyTotal)}`;
+
+    await sendMessage(chatId, response);
+
+    logger.info('Receipt photo processed OK', {
+      chatId,
+      userId,
+      messageId,
+      monto: parsed.monto,
+      extractionMethod: 'ocr',
+      latencyMs: Date.now() - startTime
+    });
+
+    // Free memory
+    compressedImage.length = 0;
+  } catch (err) {
+    logger.error('Error processing receipt photo', {
+      chatId,
+      userId,
+      messageId,
+      error: err.message,
+      stack: err.stack,
+      latencyMs: Date.now() - startTime
+    });
+
+    try {
+      await sendMessage(chatId,
+        '⚠️ Error procesando la foto. Podés:\n\n' +
+        '• Intentar de nuevo\n' +
+        '• Enviarme los datos manualmente'
+      );
+    } catch { /* silence */ }
+  }
+}
+
 // ─── Handler principal ───────────────────────────────────────────
 async function handleMessage({ chatId, userId, messageId, text }) {
   const startTime = Date.now();
@@ -165,15 +306,22 @@ async function handleMessage({ chatId, userId, messageId, text }) {
     if (text === '/start') {
       await sendMessage(chatId,
         '👋 *¡Hola! Soy tu bot de gastos.*\n\n' +
-        '📝 *Registrar gasto* (enviá un mensaje):\n' +
+        '📝 *Registrar gasto* (elegí una opción):\n\n' +
+        '💬 *Por texto:*\n' +
         '• _"Gasté 5000 en el super"_\n' +
         '• _"450 café starbucks"_\n' +
         '• _"1700 colectivo"_ — ¡sin "gasté"!\n\n' +
+        '📷 *Por foto:*\n' +
+        '• Enviame una foto del recibo\n\n' +
         '📊 _/resumen_ — Reporte del mes\n' +
         '🗑️ _/eliminar_ — Ver lista y elegir\n' +
-        '   _"eliminar 5"_ — Eliminar el gasto #5\n' +
+        '   _"elimina 5"_ — Eliminar el gasto #5\n' +
+        '   _"elimina el gasto de colectivo"_ — Por descripción\n' +
+        '   _"elimina lo del uber de ayer"_ — Con fecha\n' +
         '✏️ _/editar_ — Ver lista y elegir\n' +
-        '   _"editar 5"_ — Editar el gasto #5'
+        '   _"editá 5"_ — Editar el gasto #5\n' +
+        '   _"editá el gasto del super"_ — Por descripción\n' +
+        '   _"cambiá lo del colectivo a 2000"_ — Editar monto'
       );
       return;
     }
@@ -201,13 +349,37 @@ async function handleMessage({ chatId, userId, messageId, text }) {
       return;
     }
 
-    // Texto: "eliminar gasto X" o "eliminar X"
+    // Texto: "eliminar gasto X" o "eliminar X" o "elimina el gasto de colectivo"
     const deleteMatch = text.match(/^elimina?r?\s+(?:gasto\s+)?(\d+)$/i);
     if (deleteMatch) {
       const expenseId = parseInt(deleteMatch[1], 10);
       await handleDeleteById(chatId, userId, expenseId);
       logger.info('Eliminación por ID', { chatId, userId, expenseId, latencyMs: Date.now() - startTime });
       return;
+    }
+
+    // Detectar intención de eliminar/editar por descripción con IA
+    if (/^elimina?r?\s+/i.test(text) || /^edita?r?\s+/i.test(text) || /^borra?r?\s+/i.test(text) || /^saca?r?\s+/i.test(text) || /^cambia?r?\s+/i.test(text)) {
+      const intent = await detectIntent(text);
+      
+      if (intent.intention === 'delete') {
+        await handleDeleteByDescription(chatId, userId, intent);
+        logger.info('Eliminación por descripción (IA)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+        return;
+      }
+      
+      if (intent.intention === 'edit') {
+        await handleEditByDescription(chatId, userId, intent);
+        logger.info('Edición por descripción (IA)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+        return;
+      }
+
+      // Si la IA detectó "create" pero el usuario empezó con "elimina", probablemente no hay monto válido
+      if (intent.intention === 'create') {
+        await sendMessage(chatId, '⚠️ No entendí qué gasto querés eliminar. Probá con:\n• _"elimina el gasto de colectivo"_\n• _"elimina lo del uber de ayer"_\n• _"elimina el último de alimentos"_');
+        logger.info('Confusión en eliminación', { chatId, userId, text, intent, latencyMs: Date.now() - startTime });
+        return;
+      }
     }
 
     // Texto: "editar gasto X" o "editar X"
@@ -225,11 +397,41 @@ async function handleMessage({ chatId, userId, messageId, text }) {
       return;
     }
 
-    // ─── Check for active edit session ────────────────────────
+    // ─── Check for active edit session (BEFORE intent detection) ────────────────────────
     const handled = await handleEditInput(chatId, userId, text);
     if (handled) {
       logger.info('Input edit procesado', { chatId, userId, latencyMs: Date.now() - startTime });
       return;
+    }
+
+    // ─── Detect intention to delete/edit by description with AI ─────────────────────
+    if (/^elimina?r?\s+/i.test(text) || /^edita?r?\s+/i.test(text) || /^borra?r?\s+/i.test(text) || /^saca?r?\s+/i.test(text) || /^cambia?r?\s+/i.test(text)) {
+      const intent = await detectIntent(text);
+
+      if (intent.intention === 'delete') {
+        await handleDeleteByDescription(chatId, userId, intent);
+        logger.info('Eliminación por descripción (IA)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+        return;
+      }
+
+      if (intent.intention === 'edit') {
+        await handleEditByDescription(chatId, userId, intent);
+        logger.info('Edición por descripción (IA)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+        return;
+      }
+
+      // If AI detected "create" but user started with "elimina", probably no valid amount
+      if (intent.intention === 'create') {
+        await sendMessage(chatId, '⚠️ No entendí qué gasto querés eliminar. Probá con:\n• _"elimina el gasto de colectivo"_\n• _"elimina lo del uber de ayer"_\n• _"elimina el último de alimentos"_');
+        logger.info('Confusión en eliminación', { chatId, userId, text, intent, latencyMs: Date.now() - startTime });
+        return;
+      }
+
+      // Handle rate limit or other AI errors
+      if (intent.intention === 'error') {
+        await sendMessage(chatId, '⚠️ Servicio ocupado. Reintentá en un momento.');
+        return;
+      }
     }
 
     // ─── Idempotencia ──────────────────────────────────────────

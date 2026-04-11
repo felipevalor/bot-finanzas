@@ -1,5 +1,5 @@
 // src/services/expenseManager.js
-import { getRecentExpenses, deleteExpense, updateExpense } from './storage.js';
+import { getRecentExpenses, deleteExpense, updateExpense, searchExpenses } from './storage.js';
 import { sendInlineMessage, editMessageText, answerCallbackQuery, sendMessage } from './telegram.js';
 import logger from '../utils/logger.js';
 
@@ -141,6 +141,47 @@ export function buildConfirmKeyboard() {
   ];
 }
 
+// ─── Shared Search Helper ────────────────────────────────────────────
+
+/**
+ * Shared search logic for delete/edit by description.
+ * Returns { found: 0|1|'multiple', expenses: [], filters: {} }
+ */
+async function searchAndBranch(userId, intent, limit = 10) {
+  const filters = {
+    keywords: intent.searchKeywords || [],
+    category: intent.category || null,
+    timeReference: intent.timeReference || null,
+    isLast: intent.isLast || false,
+    expenseId: intent.expenseId || null
+  };
+
+  const expenses = await searchExpenses(userId, filters, limit);
+  return { found: expenses.length === 0 ? 0 : expenses.length === 1 ? 1 : 'multiple', expenses, filters };
+}
+
+/**
+ * Apply a single field update and respond.
+ */
+async function applyFieldUpdate(chatId, userId, expenseId, field, value) {
+  const result = await updateExpense(expenseId, userId, { [field]: value });
+
+  const fieldNames = {
+    monto: 'Monto',
+    categoria: 'Categoría',
+    descripcion: 'Descripción',
+    establecimiento: 'Establecimiento'
+  };
+
+  if (result.success) {
+    const displayValue = field === 'monto' ? `$${formatNumber(value)}` : value;
+    await sendMessage(chatId, `✅ ${fieldNames[field]} actualizado: ${displayValue}`);
+    logger.info(`${fieldNames[field]} editado por descripción`, { userId, expenseId, newValue: value });
+  } else {
+    await sendMessage(chatId, `❌ No pude actualizar el/la ${fieldNames[field].toLowerCase()}. Reintentá.`);
+  }
+}
+
 // ─── Command Handlers ────────────────────────────────────────────
 
 /**
@@ -238,6 +279,110 @@ export async function handleEditById(chatId, userId, expenseId) {
   text += `• _"establecimiento Día"_ — nuevo establecimiento`;
 
   await sendMessage(chatId, text);
+}
+
+/**
+ * Handles AI-powered delete by description (e.g. "elimina el gasto de colectivo").
+ */
+export async function handleDeleteByDescription(chatId, userId, intent) {
+  const { found, expenses, filters } = await searchAndBranch(userId, intent, 10);
+
+  if (found === 0) {
+    await sendMessage(chatId, '❌ No encontré gastos que coincidan con tu búsqueda.\n\n💡 Probá con otros términos, por ejemplo:\n• _"elimina el gasto de colectivo"_\n• _"elimina lo del uber de ayer"_\n• _"elimina el último de alimentos"_');
+    return;
+  }
+
+  if (found === 1) {
+    const expense = expenses[0];
+    const result = await deleteExpense(expense.id, userId);
+
+    if (result.success) {
+      let response = `✅ Gasto eliminado:\n\n`;
+      response += `💰 Monto: $${formatNumber(expense.monto)}\n`;
+      response += `🏷️ Categoría: ${expense.categoria}\n`;
+      if (expense.descripcion) {
+        response += `📝 Descripción: ${expense.descripcion}\n`;
+      }
+      if (expense.establecimiento) {
+        response += `🏪 Establecimiento: ${expense.establecimiento}\n`;
+      }
+      await sendMessage(chatId, response);
+      logger.info('Gasto eliminado por descripción', { userId, expenseId: expense.id, filters });
+    } else {
+      await sendMessage(chatId, '❌ No pude eliminar el gasto. Reintentá.');
+      logger.error('Error eliminando gasto por descripción', { userId, expenseId: expense.id, error: result.error });
+    }
+  } else {
+    const keyboard = buildExpenseKeyboard(expenses, 'delete');
+    const text = `Encontré ${expenses.length} gastos que coinciden. ¿Cuál querés eliminar?\n\nSeleccioná uno:`;
+
+    await sendInlineMessage(chatId, text, keyboard);
+    logger.info('Múltiples gastos encontrados para eliminación', { userId, count: expenses.length, filters });
+  }
+}
+
+/**
+ * Handles AI-powered edit by description (e.g. "editá el gasto del super").
+ */
+export async function handleEditByDescription(chatId, userId, intent) {
+  const { found, expenses, filters } = await searchAndBranch(userId, intent, 10);
+
+  if (found === 0) {
+    await sendMessage(chatId, '❌ No encontré gastos que coincidan con tu búsqueda.\n\n💡 Probá con otros términos, por ejemplo:\n• _"editá el gasto del super"_\n• _"cambiá lo del colectivo de ayer"_\n• _"editá el último de alimentos"_');
+    return;
+  }
+
+  if (found === 1) {
+    const expense = expenses[0];
+    createSession(userId, 'edit', expense.id, chatId, null);
+
+    // Check if user specified what to update
+    if (intent.updates) {
+      const updates = intent.updates;
+
+      if (updates.monto) {
+        await applyFieldUpdate(chatId, userId, expense.id, 'monto', updates.monto);
+        return;
+      }
+      if (updates.categoria) {
+        await applyFieldUpdate(chatId, userId, expense.id, 'categoria', updates.categoria);
+        return;
+      }
+      if (updates.descripcion) {
+        await applyFieldUpdate(chatId, userId, expense.id, 'descripcion', updates.descripcion);
+        return;
+      }
+      if (updates.establecimiento) {
+        await applyFieldUpdate(chatId, userId, expense.id, 'establecimiento', updates.establecimiento);
+        return;
+      }
+    }
+
+    // No specific updates — show field selection
+    let text = `✏️ Editando gasto:\n\n`;
+    text += `💰 *Monto*: $${formatNumber(expense.monto)}\n`;
+    text += `🏷️ *Categoría*: ${expense.categoria}\n`;
+    if (expense.descripcion) {
+      text += `📝 *Descripción*: ${expense.descripcion}\n`;
+    }
+    if (expense.establecimiento) {
+      text += `🏪 *Establecimiento*: ${expense.establecimiento}\n`;
+    }
+    text += `📅 *Fecha*: ${formatDate(expense.created_at)}\n\n`;
+    text += `¿Qué campo querés modificar?\n`;
+    text += `• _"monto 2500"_ — nuevo monto\n`;
+    text += `• _"categoría Alimentos"_ — nueva categoría\n`;
+    text += `• _"desc compra semanal"_ — nueva descripción\n`;
+    text += `• _"establecimiento Día"_ — nuevo establecimiento`;
+
+    await sendMessage(chatId, text);
+  } else {
+    const keyboard = buildExpenseKeyboard(expenses, 'edit');
+    const text = `Encontré ${expenses.length} gastos que coinciden. ¿Cuál querés editar?\n\nSeleccioná uno:`;
+
+    await sendInlineMessage(chatId, text, keyboard);
+    logger.info('Múltiples gastos encontrados para edición', { userId, count: expenses.length, filters });
+  }
 }
 
 // ─── Callback Handlers ───────────────────────────────────────────

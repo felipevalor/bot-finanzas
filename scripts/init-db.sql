@@ -3,16 +3,24 @@
 
 -- Tabla principal de gastos
 CREATE TABLE IF NOT EXISTS gastos (
-  id            BIGSERIAL PRIMARY KEY,
-  telegram_user_id   BIGINT NOT NULL,
-  telegram_chat_id   BIGINT NOT NULL,
+  id                  BIGSERIAL PRIMARY KEY,
+  telegram_user_id    BIGINT NOT NULL,
+  telegram_chat_id    BIGINT NOT NULL,
   telegram_message_id BIGINT NOT NULL,
-  monto         NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
-  categoria     TEXT NOT NULL DEFAULT 'Otros',
-  descripcion   TEXT,
-  establecimiento TEXT,
-  raw_message   TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  monto               NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
+  categoria           TEXT NOT NULL DEFAULT 'Otros',
+  descripcion         TEXT,
+  establecimiento     TEXT,
+  raw_message         TEXT,
+  
+  -- Receipt photo fields
+  receipt_photo_url   TEXT,                    -- Supabase Storage URL
+  receipt_photo_file_id TEXT,                  -- Telegram file_id para re-descargar
+  ocr_confidence      TEXT CHECK (ocr_confidence IN ('alta', 'media', 'baja')),
+  extraction_method   TEXT NOT NULL DEFAULT 'texto' CHECK (extraction_method IN ('texto', 'ocr', 'manual')),
+  fecha_recibo        TIMESTAMPTZ,             -- Fecha detectada en el recibo
+  
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   -- Clave única para idempotencia
   CONSTRAINT uq_user_message UNIQUE (telegram_user_id, telegram_message_id)
@@ -24,6 +32,12 @@ CREATE INDEX IF NOT EXISTS idx_gastos_user_date
 
 CREATE INDEX IF NOT EXISTS idx_gastos_user_categoria
   ON gastos (telegram_user_id, categoria);
+
+CREATE INDEX IF NOT EXISTS idx_gastos_user_extraction_method
+  ON gastos (telegram_user_id, extraction_method);
+
+CREATE INDEX IF NOT EXISTS idx_gastos_user_ocr_confidence
+  ON gastos (telegram_user_id, ocr_confidence);
 
 -- (Opcional) Función RPC para resumen agrupado nativo
 -- Permite llamar: supabase.rpc('resumen_mensual', { p_user_id: 123, p_year: 2026, p_month: 4 })

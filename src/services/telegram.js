@@ -165,7 +165,44 @@ export async function answerCallbackQuery(callbackQueryId, text, showAlert = fal
 }
 
 /**
- * Registra el webhook en Telegram.
+ * Downloads a file from Telegram using file_id.
+ * @param {string} fileId - Telegram file_id
+ * @returns {Promise<Buffer>} - File buffer
+ */
+export async function downloadFile(fileId) {
+  try {
+    // Step 1: Get file path from Telegram API
+    const res = await fetch(`${API_BASE}/getFile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId })
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      throw new Error(`getFile failed: ${data.description}`);
+    }
+
+    // Step 2: Download the actual file
+    const fileUrl = `https://api.telegram.org/file/bot${config.telegram.token}/${data.result.file_path}`;
+    const fileRes = await fetch(fileUrl);
+
+    if (!fileRes.ok) {
+      throw new Error(`Failed to download file: ${fileRes.status} ${fileRes.statusText}`);
+    }
+
+    const buffer = Buffer.from(await fileRes.arrayBuffer());
+    logger.info('File downloaded from Telegram', { fileId, size: buffer.length });
+
+    return buffer;
+  } catch (err) {
+    logger.error('Error downloading file', { fileId, error: err.message });
+    throw err;
+  }
+}
+
+/**
+ * Registers the webhook in Telegram.
  */
 export async function setWebhook() {
   const url = config.telegram.webhookUrl;
@@ -173,7 +210,10 @@ export async function setWebhook() {
     const res = await fetch(`${API_BASE}/setWebhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, allowed_updates: ['message', 'callback_query'] })
+      body: JSON.stringify({
+        url,
+        allowed_updates: ['message', 'callback_query', 'photo']
+      })
     });
     const data = await res.json();
     if (data.ok) {
