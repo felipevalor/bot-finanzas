@@ -25,7 +25,8 @@ const config = Object.freeze({
   },
   groq: {
     apiKey: process.env.GROQ_API_KEY,
-    model: 'llama-3.1-8b-instant'
+    model: 'llama-3.1-8b-instant',
+    visionModel: 'meta-llama/llama-4-scout-17b-16e-instruct'
   },
   supabase: {
     url: process.env.SUPABASE_URL,

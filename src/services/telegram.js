@@ -169,35 +169,53 @@ export async function answerCallbackQuery(callbackQueryId, text, showAlert = fal
  * @param {string} fileId - Telegram file_id
  * @returns {Promise<Buffer>} - File buffer
  */
+const DOWNLOAD_TIMEOUT_MS = 30_000; // 30 seconds
+
 export async function downloadFile(fileId) {
+  // Step 1: Get file path from Telegram API
+  let data;
   try {
-    // Step 1: Get file path from Telegram API
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
     const res = await fetch(`${API_BASE}/getFile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file_id: fileId })
+      body: JSON.stringify({ file_id: fileId }),
+      signal: controller.signal
     });
-    const data = await res.json();
+    clearTimeout(timer);
+    data = await res.json();
+  } catch (err) {
+    const msg = err.name === 'AbortError' ? 'Timeout obteniendo info del archivo desde Telegram' : `getFile request failed: ${err.message}`;
+    logger.error(msg, { fileId });
+    throw new Error(msg);
+  }
 
-    if (!data.ok) {
-      throw new Error(`getFile failed: ${data.description}`);
-    }
+  if (!data.ok) {
+    const msg = `getFile failed: ${data.description}`;
+    logger.error(msg, { fileId });
+    throw new Error(msg);
+  }
 
-    // Step 2: Download the actual file
-    const fileUrl = `https://api.telegram.org/file/bot${config.telegram.token}/${data.result.file_path}`;
-    const fileRes = await fetch(fileUrl);
+  // Step 2: Download the actual file
+  const fileUrl = `https://api.telegram.org/file/bot${config.telegram.token}/${data.result.file_path}`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+    const fileRes = await fetch(fileUrl, { signal: controller.signal });
+    clearTimeout(timer);
 
     if (!fileRes.ok) {
-      throw new Error(`Failed to download file: ${fileRes.status} ${fileRes.statusText}`);
+      throw new Error(`HTTP ${fileRes.status} ${fileRes.statusText}`);
     }
 
     const buffer = Buffer.from(await fileRes.arrayBuffer());
     logger.info('File downloaded from Telegram', { fileId, size: buffer.length });
-
     return buffer;
   } catch (err) {
-    logger.error('Error downloading file', { fileId, error: err.message });
-    throw err;
+    const msg = err.name === 'AbortError' ? 'Timeout descargando archivo desde Telegram' : `Download failed: ${err.message}`;
+    logger.error(msg, { fileId, url: fileUrl });
+    throw new Error(msg);
   }
 }
 

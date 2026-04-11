@@ -1,6 +1,7 @@
 // src/services/resumen.js (con RPC nativo)
 import supabase from '../config/supabase.js';
 import logger from '../utils/logger.js';
+import { formatNumber } from '../utils/format.js';
 
 /**
  * Genera resumen mensual agrupado por categoría.
@@ -98,6 +99,3 @@ function getBar(ratio) {
   return '▓'.repeat(filled) + '░'.repeat(8 - filled);
 }
 
-function formatNumber(num) {
-  return num.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}

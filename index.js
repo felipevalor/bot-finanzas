@@ -4,7 +4,8 @@ import config from './src/config/env.js';
 import logger from './src/utils/logger.js';
 import { sendTyping, sendMessage, setWebhook, answerCallbackQuery, downloadFile } from './src/services/telegram.js';
 import { parseExpense } from './src/services/parser.js';
-import { isDuplicate, saveExpense, getMonthlyTotal, uploadReceipt } from './src/services/storage.js';
+import { isDuplicate, saveExpense, getMonthlyTotal, uploadReceipt, getRecentExpenses } from './src/services/storage.js';
+import { formatNumber } from './src/utils/format.js';
 import { getResumen } from './src/services/resumen.js';
 import supabase from './src/config/supabase.js';
 import groq from './src/config/groq.js';
@@ -198,9 +199,6 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
     // Compress image if needed (max 3.5MB for Groq API)
     const compressedImage = await compressImage(imageBuffer, 3.5);
 
-    // Free memory
-    imageBuffer.length = 0;
-
     // OCR with Groq Vision
     const parsed = await parseReceiptPhoto(compressedImage);
 
@@ -210,14 +208,15 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
       messageId,
       parsed: JSON.stringify(parsed),
       hasError: !!parsed.error,
-      hasMonto: parsed.monto !== null && parsed.monto !== undefined
+      hasMonto: parsed.monto !== null && parsed.monto !== undefined,
+      isPartial: !!parsed.partialData
     });
 
-    if (parsed.error || parsed.monto === null || parsed.monto === undefined) {
-      const errorMsg = parsed.error || 'No se detectó un monto válido';
-      logger.info('OCR failed or returned invalid data', { userId, messageId, error: errorMsg });
+    // Check for hard error
+    if (parsed.error) {
+      logger.info('OCR failed with error', { userId, messageId, error: parsed.error });
       await sendMessage(chatId,
-        '⚠️ No pude leer claramente el recibo.\n\n' +
+        '⚠️ No pude leer el recibo.\n\n' +
         'Posibles causas:\n' +
         '• La foto está borrosa o muy oscura\n' +
         '• El recibo está cortado\n' +
@@ -225,6 +224,35 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
         'Intentá:\n' +
         '1️⃣ Otra foto con mejor iluminación\n' +
         '2️⃣ Enviarme los datos: "5000 cena restaurante"'
+      );
+      return;
+    }
+
+    // Check if we have partial data but missing monto
+    if (parsed.partialData && !parsed.monto) {
+      // We have establishment/description but no amount - ask user
+      let partialMsg = '📷 Detecté el recibo pero no pude leer el monto.\n\n';
+      if (parsed.establecimiento) {
+        partialMsg += `🏪 Establecimiento: ${parsed.establecimiento}\n`;
+      }
+      if (parsed.categoria) {
+        partialMsg += `🏷️ Categoría: ${parsed.categoria}\n`;
+      }
+      partialMsg += '\nEnviame el monto para guardarlo:\n';
+      partialMsg += `Ej: "${parsed.establecimiento ? parsed.establecimiento + ' ' : ''}15000"`;
+
+      // Save partial data to session so next text message fills in the monto
+      // For now, just prompt user to send the amount
+      await sendMessage(chatId, partialMsg);
+      return;
+    }
+
+    // Full data with monto - proceed normally
+    if (parsed.monto === null || parsed.monto === undefined) {
+      await sendMessage(chatId,
+        '⚠️ No detecté un monto válido en el recibo.\n\n' +
+        'Asegurate de que el total se vea claramente.\n\n' +
+        'O enviame los datos manualmente: "5000 cena restaurante"'
       );
       return;
     }
@@ -290,25 +318,25 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
       extractionMethod: 'ocr',
       latencyMs: Date.now() - startTime
     });
-
-    // Free memory
-    compressedImage.length = 0;
   } catch (err) {
+    const isDownloadError = err.message?.includes('Telegram') || err.message?.includes('getFile') || err.message?.includes('Download') || err.message?.includes('Timeout');
+
     logger.error('Error processing receipt photo', {
       chatId,
       userId,
       messageId,
       error: err.message,
+      type: isDownloadError ? 'download' : 'processing',
       stack: err.stack,
       latencyMs: Date.now() - startTime
     });
 
+    const userMsg = isDownloadError
+      ? '⚠️ No pude descargar la foto desde Telegram. Reintentá en unos segundos.'
+      : '⚠️ Error procesando la foto. Podés:\n\n• Intentar de nuevo\n• Enviarme los datos manualmente';
+
     try {
-      await sendMessage(chatId,
-        '⚠️ Error procesando la foto. Podés:\n\n' +
-        '• Intentar de nuevo\n' +
-        '• Enviarme los datos manualmente'
-      );
+      await sendMessage(chatId, userMsg);
     } catch { /* silence */ }
   }
 }
@@ -384,7 +412,7 @@ async function handleMessage({ chatId, userId, messageId, text }) {
         await handleDeleteById(chatId, userId, intent.expenseId);
       } else if (intent.isLast) {
         // Eliminar el último gasto
-        const recentExpenses = await (await import('./src/services/storage.js')).getRecentExpenses(userId, 1);
+        const recentExpenses = await getRecentExpenses(userId, 1);
         if (recentExpenses.length === 0) {
           await sendMessage(chatId, 'No tenés gastos registrados.');
         } else {
@@ -446,6 +474,11 @@ async function handleMessage({ chatId, userId, messageId, text }) {
         logger.info('Confusión en eliminación', { chatId, userId, text, intent, latencyMs: Date.now() - startTime });
         return;
       }
+
+      if (intent.intention === 'error') {
+        await sendMessage(chatId, '⚠️ Servicio ocupado. Reintentá en un momento.');
+        return;
+      }
     }
 
     // Texto: "editar gasto X" o "editar X"
@@ -463,41 +496,11 @@ async function handleMessage({ chatId, userId, messageId, text }) {
       return;
     }
 
-    // ─── Check for active edit session (BEFORE intent detection) ────────────────────────
+    // ─── Check for active edit session ────────────────────────────────────────────
     const handled = await handleEditInput(chatId, userId, text);
     if (handled) {
       logger.info('Input edit procesado', { chatId, userId, latencyMs: Date.now() - startTime });
       return;
-    }
-
-    // ─── Detect intention to delete/edit by description with AI ─────────────────────
-    if (/^elimina?r?\s+/i.test(text) || /^edita?r?\s+/i.test(text) || /^borra?r?\s+/i.test(text) || /^saca?r?\s+/i.test(text) || /^cambia?r?\s+/i.test(text)) {
-      const intent = await detectIntent(text);
-
-      if (intent.intention === 'delete') {
-        await handleDeleteByDescription(chatId, userId, intent);
-        logger.info('Eliminación por descripción (IA)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
-        return;
-      }
-
-      if (intent.intention === 'edit') {
-        await handleEditByDescription(chatId, userId, intent);
-        logger.info('Edición por descripción (IA)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
-        return;
-      }
-
-      // If AI detected "create" but user started with "elimina", probably no valid amount
-      if (intent.intention === 'create') {
-        await sendMessage(chatId, '⚠️ No entendí qué gasto querés eliminar. Probá con:\n• _"elimina el gasto de colectivo"_\n• _"elimina lo del uber de ayer"_\n• _"elimina el último de alimentos"_');
-        logger.info('Confusión en eliminación', { chatId, userId, text, intent, latencyMs: Date.now() - startTime });
-        return;
-      }
-
-      // Handle rate limit or other AI errors
-      if (intent.intention === 'error') {
-        await sendMessage(chatId, '⚠️ Servicio ocupado. Reintentá en un momento.');
-        return;
-      }
     }
 
     // ─── Idempotencia ──────────────────────────────────────────
@@ -577,10 +580,6 @@ async function handleMessage({ chatId, userId, messageId, text }) {
       // Silenciar si ni siquiera podemos responder
     }
   }
-}
-
-function formatNumber(num) {
-  return num.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 // ─── Iniciar servidor ─────────────────────────────────────────────

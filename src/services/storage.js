@@ -312,6 +312,24 @@ export async function updateExpense(expenseId, telegramUserId, updates) {
 }
 
 /**
+ * Obtiene un gasto por ID verificando que pertenece al usuario.
+ * @param {number} expenseId
+ * @param {number} telegramUserId
+ * @returns {Promise<object|null>}
+ */
+export async function getExpenseById(expenseId, telegramUserId) {
+  const { data, error } = await supabase
+    .from('gastos')
+    .select('id, monto, categoria, descripcion, establecimiento, created_at')
+    .eq('id', expenseId)
+    .eq('telegram_user_id', telegramUserId)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
+/**
  * Uploads receipt photo to Supabase Storage.
  * @param {Buffer} imageBuffer - Compressed image
  * @param {number} userId - Telegram user ID

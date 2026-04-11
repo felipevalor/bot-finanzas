@@ -47,7 +47,7 @@ export async function parseReceiptPhoto(imageBuffer) {
     });
 
     const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: config.groq.visionModel,
       messages: [
         {
           role: 'system',
@@ -103,6 +103,20 @@ export async function parseReceiptPhoto(imageBuffer) {
     // Validate monto - more lenient
     if (typeof parsed.monto !== 'number' || parsed.monto <= 0) {
       logger.warn('No valid monto found', { parsedResponse: parsed });
+      
+      // If we have establishment or other data, return partial result
+      if (parsed.establecimiento || parsed.descripcion) {
+        return {
+          monto: null, // Signal that we need user to provide this
+          categoria: parsed.categoria || 'Otros',
+          descripcion: parsed.descripcion || null,
+          establecimiento: parsed.establecimiento || null,
+          fecha: parsed.fecha || null,
+          confianza: parsed.confianza || 'baja',
+          partialData: true // Flag to trigger different flow
+        };
+      }
+      
       return { error: 'No detecté un monto válido en el recibo. Asegurate de que se vea claramente el total.' };
     }
 

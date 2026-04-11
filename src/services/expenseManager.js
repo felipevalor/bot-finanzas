@@ -1,7 +1,9 @@
 // src/services/expenseManager.js
-import { getRecentExpenses, deleteExpense, updateExpense, searchExpenses } from './storage.js';
+import { getRecentExpenses, getExpenseById, deleteExpense, updateExpense, searchExpenses } from './storage.js';
 import { sendInlineMessage, editMessageText, answerCallbackQuery, sendMessage } from './telegram.js';
 import logger from '../utils/logger.js';
+import config from '../config/env.js';
+import { formatNumber, formatDate } from '../utils/format.js';
 
 // ─── Session Management ──────────────────────────────────────────
 const editSessions = new Map();
@@ -222,8 +224,7 @@ export async function handleEditarCommand(chatId, userId) {
  * Handles "eliminar X" text command (direct delete by ID, no confirmation).
  */
 export async function handleDeleteById(chatId, userId, expenseId) {
-  const expenses = await getRecentExpenses(userId, 50);
-  const expense = expenses.find((e) => e.id === expenseId);
+  const expense = await getExpenseById(expenseId, userId);
 
   if (!expense) {
     await sendMessage(chatId, `❌ No encontré el gasto #${expenseId}. Usá /eliminar para ver tus gastos recientes.`);
@@ -251,8 +252,7 @@ export async function handleDeleteById(chatId, userId, expenseId) {
  * Handles "editar X" text command (starts edit session for the expense).
  */
 export async function handleEditById(chatId, userId, expenseId) {
-  const expenses = await getRecentExpenses(userId, 50);
-  const expense = expenses.find((e) => e.id === expenseId);
+  const expense = await getExpenseById(expenseId, userId);
 
   if (!expense) {
     await sendMessage(chatId, `❌ No encontré el gasto #${expenseId}. Usá /editar para ver tus gastos recientes.`);
@@ -396,9 +396,7 @@ export async function handleDeleteSelection(query, userId) {
   const messageId = query.message.message_id;
   const expenseId = parseInt(query.data.split(':')[1], 10);
 
-  // Fetch expense details
-  const expenses = await getRecentExpenses(userId, 50);
-  const expense = expenses.find((e) => e.id === expenseId);
+  const expense = await getExpenseById(expenseId, userId);
 
   if (!expense) {
     await answerCallbackQuery(callbackId, '❌ Este gasto ya no existe', true);
@@ -431,9 +429,7 @@ export async function handleEditSelection(query, userId) {
   const messageId = query.message.message_id;
   const expenseId = parseInt(query.data.split(':')[1], 10);
 
-  // Fetch expense details
-  const expenses = await getRecentExpenses(userId, 50);
-  const expense = expenses.find((e) => e.id === expenseId);
+  const expense = await getExpenseById(expenseId, userId);
 
   if (!expense) {
     await answerCallbackQuery(callbackId, '❌ Este gasto ya no existe', true);
@@ -519,8 +515,7 @@ export async function handleFieldSelection(query, userId, field) {
 
   if (field === 'categoria') {
     // Show category keyboard
-    const categories = ['Alimentos', 'Transporte', 'Hogar', 'Salud', 'Educación', 'Ocio', 'Ropa', 'Tecnología', 'Servicios', 'Facturas', 'Salidas', 'Otros'];
-    const keyboard = buildCategoryKeyboard(categories);
+    const keyboard = buildCategoryKeyboard(config.allowedCategories);
 
     await editMessageText(chatId, messageId, '🏷️ *Seleccioná la nueva categoría:*', keyboard);
     await answerCallbackQuery(callbackId);
@@ -670,15 +665,13 @@ async function handleEditFieldCommand(chatId, userId, text, expenseId) {
   const catMatch = lower.match(/^(?:categoria)\s+(.+)$/);
   if (catMatch) {
     const categoryInput = catMatch[1].trim();
-    // Find matching category (case/diacritic insensitive)
-    const categories = ['Alimentos', 'Transporte', 'Hogar', 'Salud', 'Educación', 'Ocio', 'Ropa', 'Tecnología', 'Servicios', 'Facturas', 'Salidas', 'Otros'];
     const normalizedInput = categoryInput.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const match = categories.find((cat) =>
+    const match = config.allowedCategories.find((cat) =>
       cat.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === normalizedInput
     );
 
     if (!match) {
-      await sendMessage(chatId, `⚠️ Categoría no reconocida: "${categoryInput}".\nCategorías válidas: ${categories.join(', ')}`);
+      await sendMessage(chatId, `⚠️ Categoría no reconocida: "${categoryInput}".\nCategorías válidas: ${config.allowedCategories.join(', ')}`);
       return true;
     }
 
@@ -743,19 +736,4 @@ function getExpenseEmoji(categoria) {
     Otros: '📦'
   };
   return emojis[categoria] || '💰';
-}
-
-function formatNumber(num) {
-  return num.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 }
