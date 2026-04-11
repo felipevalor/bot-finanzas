@@ -204,11 +204,27 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
     // OCR with Groq Vision
     const parsed = await parseReceiptPhoto(compressedImage);
 
+    // Log the full parsed response for debugging
+    logger.info('OCR result', {
+      userId,
+      messageId,
+      parsed: JSON.stringify(parsed),
+      hasError: !!parsed.error,
+      hasMonto: parsed.monto !== null && parsed.monto !== undefined
+    });
+
     if (parsed.error || parsed.monto === null || parsed.monto === undefined) {
+      const errorMsg = parsed.error || 'No se detectó un monto válido';
+      logger.info('OCR failed or returned invalid data', { userId, messageId, error: errorMsg });
       await sendMessage(chatId,
-        '⚠️ No pude leer claramente el recibo. Podés:\n\n' +
-        '1️⃣ Intentar de nuevo con otra foto (mejor iluminación)\n' +
-        '2️⃣ Enviarme los datos manualmente: "5000 cena restaurante"'
+        '⚠️ No pude leer claramente el recibo.\n\n' +
+        'Posibles causas:\n' +
+        '• La foto está borrosa o muy oscura\n' +
+        '• El recibo está cortado\n' +
+        '• Hay mucho reflejo o sombra\n\n' +
+        'Intentá:\n' +
+        '1️⃣ Otra foto con mejor iluminación\n' +
+        '2️⃣ Enviarme los datos: "5000 cena restaurante"'
       );
       return;
     }
@@ -348,6 +364,56 @@ async function handleMessage({ chatId, userId, messageId, text }) {
       logger.info('/editar ejecutado', { chatId, userId, latencyMs: Date.now() - startTime });
       return;
     }
+
+    // ─── Intent Detection para lenguaje natural ─────────────────────
+    const intent = await detectIntent(text);
+
+    if (intent.intention === 'summary') {
+      await sendTyping(chatId);
+      const resumen = await getResumen(userId);
+      await sendMessage(chatId, resumen);
+      logger.info('Intent: summary (lenguaje natural)', { chatId, userId, latencyMs: Date.now() - startTime });
+      return;
+    }
+
+    if (intent.intention === 'delete') {
+      await sendTyping(chatId);
+
+      // Si hay ID explícito, usar delete by ID
+      if (intent.expenseId) {
+        await handleDeleteById(chatId, userId, intent.expenseId);
+      } else if (intent.isLast) {
+        // Eliminar el último gasto
+        const recentExpenses = await (await import('./src/services/storage.js')).getRecentExpenses(userId, 1);
+        if (recentExpenses.length === 0) {
+          await sendMessage(chatId, 'No tenés gastos registrados.');
+        } else {
+          const lastExpense = recentExpenses[0];
+          await handleDeleteById(chatId, userId, lastExpense.id);
+        }
+      } else {
+        // Buscar por keywords y eliminar
+        await handleDeleteByDescription(chatId, userId, intent);
+      }
+      logger.info('Intent: delete (lenguaje natural)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+      return;
+    }
+
+    if (intent.intention === 'edit') {
+      await sendTyping(chatId);
+
+      // Si hay ID explícito, usar edit by ID
+      if (intent.expenseId) {
+        await handleEditById(chatId, userId, intent.expenseId);
+      } else {
+        // Buscar por keywords y editar
+        await handleEditByDescription(chatId, userId, intent);
+      }
+      logger.info('Intent: edit (lenguaje natural)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+      return;
+    }
+
+    // Si la intención es "create" u "other", continuar al parseo de gastos normal
 
     // Texto: "eliminar gasto X" o "eliminar X" o "elimina el gasto de colectivo"
     const deleteMatch = text.match(/^elimina?r?\s+(?:gasto\s+)?(\d+)$/i);

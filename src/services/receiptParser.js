@@ -3,30 +3,32 @@ import groq from '../config/groq.js';
 import config from '../config/env.js';
 import logger from '../utils/logger.js';
 
-const SYSTEM_PROMPT = `Eres un extractor de datos de recibos y facturas comerciales.
+const SYSTEM_PROMPT = `Eres un asistente que extrae datos de recibos, facturas y tickets de compra.
 
-Analiza la imagen del recibo y devuelve SOLO un JSON válido con esta estructura:
+Tu tarea es analizar la imagen y extraer la información en formato JSON.
+
+IMPORTANTE:
+- Puede ser CUALQUIER tipo de comprobante: factura, ticket, recibo, nota de venta, etc.
+- El recibo puede estar en ESPAÑOL
+- Busca el IMPORTE TOTAL o TOTAL FINAL
+- Si ves un nombre de comercio/empresa, extráelo
+- Si hay una fecha, extráela
+
+FORMATO JSON:
 {
-  "monto": number,
-  "categoria": "string (exactamente una de: ${config.allowedCategories.join(',')})",
-  "descripcion": "string corto o null",
-  "establecimiento": "string o null",
-  "fecha": "YYYY-MM-DD o null",
-  "confianza": "alta|media|baja"
+  "monto": <número del total final>,
+  "establecimiento": "<nombre del comercio o null si no hay>",
+  "descripcion": "<breve descripción o null>",
+  "categoria": "<una de: ${config.allowedCategories.join(',')}>",
+  "fecha": "<YYYY-MM-DD o null>",
+  "confianza": "<alta|media|baja>"
 }
 
-REGLAS CRÍTICAS:
-1. Busca el TOTAL FINAL (no sumas parciales, no subtotal sin IVA)
-2. Identifica el nombre del comercio/establecimiento claramente visible
-3. Si hay múltiples ítems, extrae solo el total general
-4. Si la fecha es legible, extraela en formato YYYY-MM-DD
-5. Si no podés leer bien algún campo, pon null (NO inventes)
-6. Marcá confianza como "baja" si:
-   - La imagen está borrosa
-   - Hay reflejos o sombras que tapan información
-   - El recibo está cortado
-7. Si no hay un recibo/factura en la imagen, devuelve {"error": "No es un recibo válido"}
-8. DEVUELVE SOLO JSON VÁLIDO, sin texto adicional ni markdown`;
+REGLAS:
+- Si la imagen tiene texto pero no parece un recibo, igualmente tratá de extraer el monto
+- Si no encontrás un campo, poné null (NO inventes)
+- Marcá confianza como "baja" si la imagen está muy borrosa o cortada
+- DEVOLVÉ SOLO JSON, sin markdown ni texto adicional`;
 
 /**
  * Parses a receipt photo using Groq Vision API.
@@ -94,12 +96,14 @@ export async function parseReceiptPhoto(imageBuffer) {
 
     // Check for explicit error from model
     if (parsed.error) {
+      logger.warn('Groq Vision returned explicit error', { error: parsed.error });
       return { error: parsed.error };
     }
 
-    // Validate monto
+    // Validate monto - more lenient
     if (typeof parsed.monto !== 'number' || parsed.monto <= 0) {
-      return { error: 'No detecté un monto válido en el recibo.' };
+      logger.warn('No valid monto found', { parsedResponse: parsed });
+      return { error: 'No detecté un monto válido en el recibo. Asegurate de que se vea claramente el total.' };
     }
 
     // Normalize categoría

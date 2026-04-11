@@ -11,45 +11,47 @@ import logger from './logger.js';
 export async function compressImage(imageBuffer, maxSizeMB = 3.5) {
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
-  // If already small enough, return as-is but still convert to JPEG
-  if (imageBuffer.length < maxSizeBytes) {
-    try {
-      const metadata = await sharp(imageBuffer).metadata();
-      // Convert to JPEG if not already
-      if (metadata.format !== 'jpeg') {
-        logger.info('Converting image to JPEG', { fromFormat: metadata.format, originalSize: imageBuffer.length });
-        return await sharp(imageBuffer)
-          .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 85 })
-          .toBuffer();
-      }
-      return imageBuffer;
-    } catch (err) {
-      logger.error('Error checking image metadata', { error: err.message });
-      // If we can't read metadata, just compress anyway
+  // If already small enough, still optimize for OCR
+  try {
+    const metadata = await sharp(imageBuffer).metadata();
+    
+    // Convert to JPEG with high quality for OCR (keep text sharp)
+    if (metadata.format !== 'jpeg') {
+      logger.info('Converting image to JPEG for OCR', { 
+        fromFormat: metadata.format, 
+        originalSize: imageBuffer.length,
+        dimensions: `${metadata.width}x${metadata.height}`
+      });
       return await sharp(imageBuffer)
-        .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 85 })
+        .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 90, mozjpeg: true }) // Higher quality for better OCR
         .toBuffer();
     }
+    
+    // Already JPEG and under size limit
+    if (imageBuffer.length < maxSizeBytes) {
+      return imageBuffer;
+    }
+  } catch (err) {
+    logger.error('Error checking image metadata, compressing anyway', { error: err.message });
   }
 
   // Iteratively reduce quality until under limit
-  let quality = 85;
+  let quality = 90;
   let compressed = await sharp(imageBuffer)
-    .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality })
+    .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality, mozjpeg: true })
     .toBuffer();
 
-  while (compressed.length > maxSizeBytes && quality > 20) {
+  while (compressed.length > maxSizeBytes && quality > 40) {
     quality -= 10;
     compressed = await sharp(imageBuffer)
-      .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality })
+      .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality, mozjpeg: true })
       .toBuffer();
   }
 
-  logger.info('Image compressed', {
+  logger.info('Image compressed for OCR', {
     originalSize: imageBuffer.length,
     compressedSize: compressed.length,
     compressionRatio: ((1 - compressed.length / imageBuffer.length) * 100).toFixed(1) + '%',
