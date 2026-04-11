@@ -10,6 +10,7 @@ Posibles intenciones:
 - "delete": El usuario quiere eliminar un gasto existente (ej: "elimina el gasto de colectivo", "borrá lo del uber", "sacá el café de hoy")
 - "edit": El usuario quiere editar un gasto existente (ej: "editá el gasto del super", "cambiá lo de colectivo a 2000")
 - "summary": El usuario quiere ver un resumen (ej: "resumen", "cuánto gasté este mes")
+- "price_check": El usuario quiere saber cuánto pagó por un producto (ej: "que pague por la leche?", "cuanto me salio el pan?", "precio de la coca cola", "ultimo precio del arroz")
 - "other": Cualquier otra cosa
 
 REGLAS:
@@ -18,13 +19,15 @@ REGLAS:
 - Para "delete", si el usuario dice "último" o "ultimo", poné last: true
 - Para "edit", si el usuario especifica qué cambiar (monto nuevo, categoría nueva), poné los updates
 - Si hay un número de ID explícito (ej: "elimina 5"), poné expenseId
+- Para "price_check", extraé los keywords del producto que busca
 - NUNCA inventes datos. Si no hay info, poné null o arrays vacíos
 
 Formato de respuesta:
 {
-  "intention": "create|delete|edit|summary|other",
+  "intention": "create|delete|edit|summary|price_check|other",
   "expenseId": number o null,
   "searchKeywords": ["palabras clave para buscar en descripción/establecimiento"],
+  "productKeywords": ["palabras clave del producto a consultar, solo para price_check"],
   "category": "categoría mencionada o null",
   "timeReference": "hoy|ayer|esta semana|este mes|null",
   "isLast": true/false (solo para delete/edit),

@@ -4,7 +4,7 @@ import config from './src/config/env.js';
 import logger from './src/utils/logger.js';
 import { sendTyping, sendMessage, setWebhook, answerCallbackQuery, downloadFile } from './src/services/telegram.js';
 import { parseExpense } from './src/services/parser.js';
-import { isDuplicate, saveExpense, getMonthlyTotal, uploadReceipt, getRecentExpenses } from './src/services/storage.js';
+import { isDuplicate, saveExpense, saveProducts, getMonthlyTotal, uploadReceipt, getRecentExpenses } from './src/services/storage.js';
 import { formatNumber } from './src/utils/format.js';
 import { getResumen } from './src/services/resumen.js';
 import supabase from './src/config/supabase.js';
@@ -29,6 +29,7 @@ import {
   handleEditByDescription
 } from './src/services/expenseManager.js';
 import { startKeepAlive } from './src/services/keepAlive.js';
+import { handlePriceCheck, formatItemList } from './src/services/productQuery.js';
 
 // ─── Cola en memoria ─────────────────────────────────────────────
 const messageQueue = [];
@@ -292,6 +293,15 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
       return;
     }
 
+    // Save individual products (best-effort, never fail the main flow)
+    if (result.id && parsed.items && parsed.items.length > 0) {
+      try {
+        await saveProducts(result.id, userId, parsed.items, parsed.establecimiento, parsed.fecha);
+      } catch (err) {
+        logger.error('Error guardando productos del recibo', { userId, messageId, gastoId: result.id, error: err.message });
+      }
+    }
+
     // Monthly total
     const monthlyTotal = await getMonthlyTotal(userId);
 
@@ -307,6 +317,12 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
     }
     response += `\n🔍 *Confianza OCR*: ${parsed.confianza || 'media'}\n`;
     response += `📅 *Total del mes*: $${formatNumber(monthlyTotal)}`;
+
+    // Append item breakdown if available
+    const itemList = formatItemList(parsed.items);
+    if (itemList) {
+      response += itemList;
+    }
 
     await sendMessage(chatId, response);
 
@@ -365,7 +381,11 @@ async function handleMessage({ chatId, userId, messageId, text }) {
         '✏️ _/editar_ — Ver lista y elegir\n' +
         '   _"editá 5"_ — Editar el gasto #5\n' +
         '   _"editá el gasto del super"_ — Por descripción\n' +
-        '   _"cambiá lo del colectivo a 2000"_ — Editar monto'
+        '   _"cambiá lo del colectivo a 2000"_ — Editar monto\n\n' +
+        '🔍 *Consultar precios:*\n' +
+        '   _"qué pagué por la leche?"_\n' +
+        '   _"cuánto me salió el pan?"_\n' +
+        '   _"último precio del arroz"_'
       );
       return;
     }
@@ -440,6 +460,13 @@ async function handleMessage({ chatId, userId, messageId, text }) {
         await handleEditByDescription(chatId, userId, intent);
       }
       logger.info('Intent: edit (lenguaje natural)', { chatId, userId, intent, latencyMs: Date.now() - startTime });
+      return;
+    }
+
+    if (intent.intention === 'price_check') {
+      await sendTyping(chatId);
+      await handlePriceCheck(chatId, userId, intent);
+      logger.info('Intent: price_check', { chatId, userId, keywords: intent.productKeywords, latencyMs: Date.now() - startTime });
       return;
     }
 

@@ -57,7 +57,7 @@ export async function saveExpense({
   extractionMethod = 'texto',
   fechaRecibo = null
 }) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('gastos')
     .insert({
       telegram_user_id: telegramUserId,
@@ -74,7 +74,9 @@ export async function saveExpense({
       extraction_method: extractionMethod,
       fecha_recibo: fechaRecibo,
       created_at: new Date().toISOString()
-    });
+    })
+    .select('id')
+    .single();
 
   if (error) {
     logger.error('Error guardando gasto', {
@@ -89,7 +91,108 @@ export async function saveExpense({
   }
 
   logger.info('Gasto guardado', { telegramUserId, messageId, monto, categoria, extractionMethod });
-  return { success: true };
+  return { success: true, id: data.id };
+}
+
+/**
+ * Normaliza un nombre de producto para búsqueda (lowercase, sin acentos).
+ * @param {string} nombre
+ * @returns {string}
+ */
+function normalizarNombre(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+/**
+ * Guarda los productos de un recibo en la tabla productos.
+ * @param {number} gastoId
+ * @param {number} telegramUserId
+ * @param {Array<{nombre: string, precio: number, cantidad: number, unidad: string|null}>} items
+ * @param {string|null} establecimiento
+ * @param {string|null} fecha
+ * @returns {Promise<{success: boolean, count: number, error?: string}>}
+ */
+export async function saveProducts(gastoId, telegramUserId, items, establecimiento, fecha) {
+  if (!items || items.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  const rows = items.map(item => ({
+    gasto_id: gastoId,
+    telegram_user_id: telegramUserId,
+    nombre: item.nombre,
+    nombre_normalizado: normalizarNombre(item.nombre),
+    precio: item.precio,
+    cantidad: item.cantidad || 1,
+    unidad: item.unidad || null,
+    establecimiento: establecimiento || null,
+    fecha: fecha ? new Date(fecha).toISOString() : new Date().toISOString()
+  }));
+
+  const { error } = await supabase.from('productos').insert(rows);
+
+  if (error) {
+    logger.error('Error guardando productos', { gastoId, telegramUserId, error: error.message });
+    return { success: false, count: 0, error: error.message };
+  }
+
+  logger.info('Productos guardados', { gastoId, telegramUserId, count: rows.length });
+  return { success: true, count: rows.length };
+}
+
+/**
+ * Busca el último precio pagado por un producto.
+ * @param {number} telegramUserId
+ * @param {string[]} keywords - Palabras clave normalizadas para buscar en nombre_normalizado
+ * @returns {Promise<{nombre: string, precio: number, cantidad: number, unidad: string|null, establecimiento: string|null, fecha: string}|null>}
+ */
+export async function getLastPrice(telegramUserId, keywords) {
+  if (!keywords || keywords.length === 0) return null;
+
+  const normalizedKeywords = keywords.map(k =>
+    k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  );
+
+  const orParts = normalizedKeywords.map(k => `nombre_normalizado.ilike.%${k}%`).join(',');
+
+  const { data, error } = await supabase
+    .from('productos')
+    .select('nombre, precio, cantidad, unidad, establecimiento, fecha')
+    .eq('telegram_user_id', telegramUserId)
+    .or(orParts)
+    .order('fecha', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    logger.error('Error buscando último precio', { telegramUserId, keywords, error: error.message });
+    return null;
+  }
+
+  return data && data.length > 0 ? data[0] : null;
+}
+
+/**
+ * Obtiene todos los productos de un gasto específico.
+ * @param {number} gastoId
+ * @returns {Promise<Array>}
+ */
+export async function getProductsByGasto(gastoId) {
+  const { data, error } = await supabase
+    .from('productos')
+    .select('nombre, precio, cantidad, unidad')
+    .eq('gasto_id', gastoId)
+    .order('id', { ascending: true });
+
+  if (error) {
+    logger.error('Error obteniendo productos por gasto', { gastoId, error: error.message });
+    return [];
+  }
+
+  return data || [];
 }
 
 /**

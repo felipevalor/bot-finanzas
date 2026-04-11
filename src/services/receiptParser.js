@@ -21,13 +21,24 @@ FORMATO JSON:
   "descripcion": "<breve descripción o null>",
   "categoria": "<una de: ${config.allowedCategories.join(',')}>",
   "fecha": "<YYYY-MM-DD o null>",
-  "confianza": "<alta|media|baja>"
+  "confianza": "<alta|media|baja>",
+  "items": [
+    {
+      "nombre": "<nombre del producto tal como aparece en el recibo>",
+      "precio": <precio unitario numérico>,
+      "cantidad": <cantidad numérica, default 1>,
+      "unidad": "<kg|lt|un|null>"
+    }
+  ]
 }
 
 REGLAS:
 - Si la imagen tiene texto pero no parece un recibo, igualmente tratá de extraer el monto
 - Si no encontrás un campo, poné null (NO inventes)
 - Marcá confianza como "baja" si la imagen está muy borrosa o cortada
+- Si podés identificar productos individuales con sus precios, incluirlos en items
+- Si no podés distinguir ítems individuales, devolvé items como array vacío []
+- precio en items es el precio UNITARIO (no el subtotal si hay múltiples unidades)
 - DEVOLVÉ SOLO JSON, sin markdown ni texto adicional`;
 
 /**
@@ -67,7 +78,7 @@ export async function parseReceiptPhoto(imageBuffer) {
         }
       ],
       temperature: 0.1,
-      max_tokens: 512,
+      max_tokens: 1024,
       response_format: { type: 'json_object' }
     });
 
@@ -125,13 +136,27 @@ export async function parseReceiptPhoto(imageBuffer) {
       parsed.categoria = 'Otros';
     }
 
+    // Validate and normalize items array
+    let items = [];
+    if (Array.isArray(parsed.items)) {
+      items = parsed.items
+        .filter(item => item.nombre && typeof item.precio === 'number' && item.precio > 0)
+        .map(item => ({
+          nombre: String(item.nombre).trim(),
+          precio: item.precio,
+          cantidad: typeof item.cantidad === 'number' && item.cantidad > 0 ? item.cantidad : 1,
+          unidad: item.unidad || null
+        }));
+    }
+
     return {
       monto: parsed.monto,
       categoria: parsed.categoria,
       descripcion: parsed.descripcion || null,
       establecimiento: parsed.establecimiento || null,
       fecha: parsed.fecha || null,
-      confianza: parsed.confianza || 'media'
+      confianza: parsed.confianza || 'media',
+      items
     };
   } catch (err) {
     const latency = Date.now() - startTime;
