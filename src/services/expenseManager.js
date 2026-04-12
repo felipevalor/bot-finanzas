@@ -1,5 +1,5 @@
 // src/services/expenseManager.js
-import { getRecentExpenses, getExpenseById, deleteExpense, updateExpense, searchExpenses } from './storage.js';
+import { getRecentExpenses, getExpenseById, deleteExpense, updateExpense, searchExpenses, getProductsByGasto, updateProduct } from './storage.js';
 import { sendInlineMessage, editMessageText, answerCallbackQuery, sendMessage } from './telegram.js';
 import logger from '../utils/logger.js';
 import config from '../config/env.js';
@@ -567,6 +567,10 @@ export async function handleCategorySelection(query, userId, category) {
  * Handles text input during edit session (monto, descripcion, establecimiento, categoria).
  */
 export async function handleEditInput(chatId, userId, text) {
+  // Check for product edit session first
+  const maybeProduct = await handleProductEditInput(chatId, userId, text);
+  if (maybeProduct) return true;
+
   const session = getSession(userId);
 
   if (!session || session.action !== 'edit') {
@@ -715,6 +719,109 @@ async function handleEditFieldCommand(chatId, userId, text, expenseId) {
   }
 
   await sendMessage(chatId, '⚠️ No entendí qué campo querés editar. Usá:\n• _"monto 2500"_\n• _"categoría Alimentos"_\n• _"desc compra semanal"_\n• _"establecimiento Día"_');
+  return true;
+}
+
+// ─── Product Edit Handlers ────────────────────────────────────────
+
+/**
+ * Shows product list for a gasto as inline keyboard so user can pick one to edit.
+ * Callback data: prod_list:{gastoId}
+ */
+export async function handleProductListCallback(query, userId) {
+  const callbackId = query.id;
+  const chatId = query.message.chat.id;
+  const gastoId = parseInt(query.data.split(':')[1], 10);
+
+  const products = await getProductsByGasto(gastoId);
+
+  if (products.length === 0) {
+    await answerCallbackQuery(callbackId, 'No hay productos guardados para este recibo', true);
+    return;
+  }
+
+  const buttons = products.slice(0, 10).map(p => {
+    const label = p.nombre.length > 35 ? p.nombre.slice(0, 32) + '...' : p.nombre;
+    return [{ text: `✏️ ${label}`, callback_data: `prod:${p.id}` }];
+  });
+  buttons.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
+
+  await sendInlineMessage(chatId, '✏️ *¿Qué producto querés editar?*', buttons);
+  await answerCallbackQuery(callbackId);
+}
+
+/**
+ * Starts edit session for a specific product.
+ * Callback data: prod:{productId}
+ */
+export async function handleProductSelectCallback(query, userId) {
+  const callbackId = query.id;
+  const chatId = query.message.chat.id;
+  const messageId = query.message.message_id;
+  const productId = parseInt(query.data.split(':')[1], 10);
+
+  // Store in session: action=edit_product, productId
+  editSessions.set(userId, {
+    action: 'edit_product',
+    productId,
+    chatId,
+    messageId,
+    createdAt: Date.now()
+  });
+
+  await editMessageText(
+    chatId,
+    messageId,
+    '✏️ Enviame el nombre correcto.\n\nSi también querés corregir el precio, usá el formato:\n_nombre|precio_ (ej: "Leche La Serenísima 1L|1450")'
+  );
+  await answerCallbackQuery(callbackId);
+}
+
+/**
+ * Processes text input during edit_product session.
+ * Returns true if handled.
+ */
+async function handleProductEditInput(chatId, userId, text) {
+  const session = editSessions.get(userId);
+  if (!session || session.action !== 'edit_product') return false;
+
+  if (Date.now() - session.createdAt > SESSION_TIMEOUT_MS) {
+    editSessions.delete(userId);
+    await sendMessage(chatId, '⏰ Sesión expirada. Volvé a usar el botón Editar ítems.');
+    return true;
+  }
+
+  const { productId } = session;
+  editSessions.delete(userId);
+
+  // Parse "nombre|precio" or just "nombre"
+  const parts = text.split('|');
+  const updates = {};
+  updates.nombre = parts[0].trim();
+
+  if (parts.length > 1) {
+    const precio = parseFloat(parts[1].replace(/[^0-9.,]/g, '').replace(',', '.'));
+    if (!isNaN(precio) && precio > 0) {
+      updates.precio = precio;
+    }
+  }
+
+  if (!updates.nombre) {
+    await sendMessage(chatId, '⚠️ El nombre no puede estar vacío.');
+    return true;
+  }
+
+  const result = await updateProduct(productId, userId, updates);
+
+  if (result.success) {
+    let msg = `✅ Producto actualizado:\n📦 *${updates.nombre}*`;
+    if (updates.precio) msg += `\n💸 $${formatNumber(updates.precio)}`;
+    await sendMessage(chatId, msg);
+    logger.info('Producto editado', { userId, productId, updates });
+  } else {
+    await sendMessage(chatId, '❌ No pude actualizar el producto. Reintentá.');
+  }
+
   return true;
 }
 

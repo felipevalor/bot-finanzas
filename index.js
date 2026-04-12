@@ -2,7 +2,7 @@
 import express from 'express';
 import config from './src/config/env.js';
 import logger from './src/utils/logger.js';
-import { sendTyping, sendMessage, setWebhook, answerCallbackQuery, downloadFile } from './src/services/telegram.js';
+import { sendTyping, sendMessage, sendInlineMessage, setWebhook, answerCallbackQuery, downloadFile } from './src/services/telegram.js';
 import { parseExpense } from './src/services/parser.js';
 import { isDuplicate, saveExpense, saveProducts, getMonthlyTotal, uploadReceipt, getRecentExpenses } from './src/services/storage.js';
 import { formatNumber } from './src/utils/format.js';
@@ -26,7 +26,9 @@ import {
   handleDeleteById,
   handleEditById,
   handleDeleteByDescription,
-  handleEditByDescription
+  handleEditByDescription,
+  handleProductListCallback,
+  handleProductSelectCallback
 } from './src/services/expenseManager.js';
 import { startKeepAlive } from './src/services/keepAlive.js';
 import { handlePriceCheck, formatItemList } from './src/services/productQuery.js';
@@ -155,7 +157,11 @@ async function handleCallbackQuery(query) {
   const data = query.data;
 
   try {
-    if (data.startsWith('del:')) {
+    if (data.startsWith('prod_list:')) {
+      await handleProductListCallback(query, userId);
+    } else if (data.startsWith('prod:')) {
+      await handleProductSelectCallback(query, userId);
+    } else if (data.startsWith('del:')) {
       await handleDeleteSelection(query, userId);
     } else if (data.startsWith('edit:')) {
       await handleEditSelection(query, userId);
@@ -324,7 +330,13 @@ async function handlePhotoMessage({ chatId, userId, messageId, photos, caption }
       response += itemList;
     }
 
-    await sendMessage(chatId, response);
+    // Show edit button if products were saved
+    if (result.id && parsed.items && parsed.items.length > 0) {
+      const keyboard = [[{ text: '✏️ Editar ítems', callback_data: `prod_list:${result.id}` }]];
+      await sendInlineMessage(chatId, response, keyboard);
+    } else {
+      await sendMessage(chatId, response);
+    }
 
     logger.info('Receipt photo processed OK', {
       chatId,

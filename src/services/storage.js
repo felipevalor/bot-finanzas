@@ -183,7 +183,7 @@ export async function getLastPrice(telegramUserId, keywords) {
 export async function getProductsByGasto(gastoId) {
   const { data, error } = await supabase
     .from('productos')
-    .select('nombre, precio, cantidad, unidad')
+    .select('id, nombre, precio, cantidad, unidad')
     .eq('gasto_id', gastoId)
     .order('id', { ascending: true });
 
@@ -193,6 +193,34 @@ export async function getProductsByGasto(gastoId) {
   }
 
   return data || [];
+}
+
+/**
+ * Actualiza nombre y/o precio de un producto.
+ * @param {number} productId
+ * @param {number} telegramUserId
+ * @param {{nombre?: string, precio?: number}} updates
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function updateProduct(productId, telegramUserId, updates) {
+  const payload = { ...updates };
+  if (updates.nombre) {
+    payload.nombre_normalizado = normalizarNombre(updates.nombre);
+  }
+
+  const { error } = await supabase
+    .from('productos')
+    .update(payload)
+    .eq('id', productId)
+    .eq('telegram_user_id', telegramUserId);
+
+  if (error) {
+    logger.error('Error actualizando producto', { productId, telegramUserId, error: error.message });
+    return { success: false, error: error.message };
+  }
+
+  logger.info('Producto actualizado', { productId, telegramUserId, fields: Object.keys(updates) });
+  return { success: true };
 }
 
 /**
